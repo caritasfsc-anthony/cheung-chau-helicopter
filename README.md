@@ -2,18 +2,18 @@
 
 WebGL 教學遊戲，地圖只覆蓋長洲及附近海域，使用直升機而非無人機。這不是已上線的個人版 `hkrgb/hk-drone-flight`。
 
-試玩：**https://caritasfsc-anthony.github.io/cheung-chau-helicopter/?v=s1-20261123-1100**
+試玩：**https://caritasfsc-anthony.github.io/cheung-chau-helicopter/?v=s1-20261123-1130**
 
-本機開發可用：http://127.0.0.1:8771/?v=s1-20261123-1100
+本機開發可用：http://127.0.0.1:8771/?v=s1-20261123-1130
 
 手機省資源可加 `&quality=low`。除錯可加 `&debug=1`。
 
-版本：**s1-20261123-1100**。全程最低離地高度 100 米。直升機模型於起飛後背景下載，同一局自動顯示。圖磚未到也可先開始並操控；等候時會顯示計數、參考棋盤（並非真實海陸）及重試。
+版本：**s1-20261123-1130**。全程最低離地高度 100 米。直升機模型於起飛後背景下載，同一局自動顯示。圖磚未到也可先開始並操控；等候時會顯示計數、參考棋盤（並非真實海陸）及重試。
 
 ## 操作與任務
 
 - 鍵盤：WASD 平移，Q / E 轉向，空白鍵升高，Shift 下降，C 切換視角，R 重飛
-- 手機：使用畫面左下／右下按鈕
+- 手機：請打橫使用，建議先開全屏幕；使用畫面左下／右下圖案按鈕
 - 起點在東灣泳灘附近，離第一站巡查圈約 289 米，避免一出場就完成東灣
 - 任務順序：東灣 → 南氹 → 東灣仔 → 觀音灣（饅頭石）
 - 飛入各站黃圈即可；最後一站綠圈完成任務，無需返回碼頭或降落
@@ -25,7 +25,7 @@ WebGL 教學遊戲，地圖只覆蓋長洲及附近海域，使用直升機而�
 
 ## 資料來源與授權
 
-- 長洲航拍：地政總署 Imagery Map API（CSDI）。畫面須顯示地政總署標誌及 “Aerial Photograph from Lands Department”。
+- 長洲航拍：地政總署 Imagery Map API（CSDI）。地圖畫面以本地小標誌及短句顯示地政總署標誌與 “Aerial Photograph from Lands Department”。
 - 任務航點：© [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)，並對照[地政總署長洲地圖](https://www.landsd.gov.hk/doc/en/mapping/ehkg/MapPages/GeoPDF/IS04_CheungChau.pdf)。
   - 東灣：[OSM node 1134027637](https://www.openstreetmap.org/node/1134027637)
   - 南氹：[OSM node 3239128609](https://www.openstreetmap.org/node/3239128609)（長洲本地，不是蒲台南氹灣）

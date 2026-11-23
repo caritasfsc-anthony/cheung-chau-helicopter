@@ -31,7 +31,7 @@ const HK = (() => {
 
   const IMAGERY_TMPL = 'https://mapapi.hkmapservice.gov.hk/gs/api/v1.0.0/xyz/imagery/WGS84/{z}/{x}/{y}.png';
   const TERRAIN_TMPL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-  const LANDSD_LOGO = 'https://www.landsd.gov.hk/images/landsd_logo.svg';
+  const LANDSD_LOGO = 'landsd-logo.svg';
   const BASE_Z = 12;
   const TERRAIN_Z = 13;
   const IMAGE_Z = 15; // unchanged elsewhere in Hong Kong

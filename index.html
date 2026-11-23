@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store">
 <title>長洲直升機巡航｜學校版</title>
-<link rel="stylesheet" href="style.css?v=s1-20261123-1100">
+<link rel="stylesheet" href="style.css?v=s1-20261123-1130">
 <script>
-window.GAME_BUILD = 's1-20261123-1100';
+window.GAME_BUILD = 's1-20261123-1130';
 window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
 // ES5 bootstrap remains executable even if a later game script fails to parse.
@@ -94,8 +94,8 @@ window.addEventListener('unhandledrejection', function(ev) {
   });
 });
 </script>
-<script defer src="hk-map.js?v=s1-20261123-1100" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
-<script defer src="game.js?v=s1-20261123-1100"></script>
+<script defer src="hk-map.js?v=s1-20261123-1130" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1130"></script>
 </head>
 <body>
 <main>
@@ -103,26 +103,48 @@ window.addEventListener('unhandledrejection', function(ev) {
 <header>
   <div class="brand">長洲直升機巡航 <small>CHEUNG CHAU SCHOOL EDITION</small></div>
   <div class="header-tools">
-    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1100</div>
-    <button id="camera" disabled>切換視角 <kbd>C</kbd></button>
+    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1130</div>
   </div>
 </header>
+<div class="corner-tools">
+  <button id="camera" type="button" disabled>切換視角 <kbd>C</kbd></button>
+  <button type="button" id="fullscreen" class="fs-btn" aria-label="全屏幕" aria-pressed="false" title="全屏幕">
+    <svg class="fs-enter" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M4 16v4h4M20 16v4h-4"/></svg>
+    <svg class="fs-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h5V4M15 4v5h5M4 15h5v5M20 15h-5v5"/></svg>
+  </button>
+</div>
 <section class="mission"><small>長洲巡航</small><h1 id="target">東灣</h1><p id="guide" aria-live="polite">準備起飛</p><p id="mission-note" hidden>自由飛行中。巡航任務只在開始任務後進行。</p><ol id="route"></ol></section>
 <div id="marker" hidden></div>
 <div id="reticle" hidden>＋</div>
+<div class="map-stack">
 <aside class="map"><canvas id="map" width="180" height="160" aria-label="航線小地圖"></canvas><small id="map-status">北 ↑　載入長洲地圖…</small>
     <label class="height-mode-label">高程 <select id="height-mode" title="用來對比全球圖磚與本地長洲高程">
       <option value="auto">自動（全球高程＋航拍）</option>
       <option value="tiles">只用全球圖磚</option>
       <option value="baked">只用本地長洲高程／地圖</option>
     </select></label></aside>
+<div id="map-credit">
+  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1130" width="120" height="14" alt="地政總署">
+  <p>Aerial Photograph from Lands Department／航拍影像 © 地政總署</p>
+</div>
+</div>
 <section class="telemetry" aria-label="飛行儀表">
 <div><small>海拔</small><strong id="height">0</strong> m</div><div><small>離地</small><strong id="agl">100</strong> m</div><div><small>地速</small><strong id="speed">0</strong> km/h</div><div><small>航向</small><strong id="heading">000</strong> °</div><div><small>電量</small><strong id="battery">100</strong> %</div>
 </section>
 <div class="keyboard">WASD 平移　 Q / E 轉向　 Space / Shift 升降　 R 重飛</div>
 <div class="touch" aria-label="觸控飛行">
-<div class="pad"><button data-key="KeyW">前</button><button data-key="KeyA">左</button><button data-key="KeyS">後</button><button data-key="KeyD">右</button></div>
-<div class="pad"><button data-key="Space">升</button><button data-key="ShiftLeft">降</button><button data-key="KeyQ">左轉</button><button data-key="KeyE">右轉</button></div>
+<div class="pad dpad move-pad" aria-label="平移">
+<button type="button" data-key="KeyW" aria-label="前移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 20 18H4z"/></svg></button>
+<button type="button" data-key="KeyA" aria-label="左移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 18 4v16z"/></svg></button>
+<button type="button" data-key="KeyS" aria-label="後移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 4 6h16z"/></svg></button>
+<button type="button" data-key="KeyD" aria-label="右移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12 6 4v16z"/></svg></button>
+</div>
+<div class="pad dpad lift-pad" aria-label="升降轉向">
+<button type="button" data-key="Space" aria-label="升高"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 11h-4v10H9V11H5z"/></svg></button>
+<button type="button" data-key="KeyQ" aria-label="左轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6H5v4"/><path d="M19.5 15.5a7 7 0 1 0-13.2-3.4"/></svg></button>
+<button type="button" data-key="ShiftLeft" aria-label="下降"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 5 13h4V3h6v10h4z"/></svg></button>
+<button type="button" data-key="KeyE" aria-label="右轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6h4v4"/><path d="M4.5 15.5a7 7 0 1 1 13.2-3.4"/></svg></button>
+</div>
 </div>
 <section id="stream-notice" hidden aria-label="地圖載入狀態">
 <span id="stream-message" role="status" aria-live="polite"></span>
@@ -137,23 +159,111 @@ window.addEventListener('unhandledrejection', function(ev) {
 <div class="brief-actions">
 <button id="start" disabled>載入畫面…</button>
 <button id="explore" class="secondary" disabled>自由飛行</button>
-<a id="startup-retry" href="?v=s1-20261123-1100&amp;quality=low">手機相容模式重載</a>
+<a id="startup-retry" href="?v=s1-20261123-1130&amp;quality=low">手機相容模式重載</a>
 </div>
 <div class="brief-content">
 <p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 100 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
 <p id="start-hint" class="controls">任務與自由飛行都從離地 100 米開始，不能再降低。在東灣泳灘附近起飛後，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
-<p class="controls">電腦可用 WASD 平移、Q / E 轉向、空白鍵升高、Shift 下降。手機請用畫面上的飛行按鈕。</p>
+<p class="controls">電腦可用 WASD 平移、Q / E 轉向、空白鍵升高、Shift 下降。手機請打橫再玩，建議先開全屏幕，並用畫面上的飛行按鈕。</p>
 </div>
+<p class="sources-brief">來源：航拍影像 © 地政總署　高程 <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen</a>／<a href="https://data.gov.hk/en-data/dataset/hk-landsd-openmap-5m-grid-dtm">地政 5 米 DTM</a>　模型 <a href="https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4">assetfactory（Sketchfab）</a>　地點 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a></p>
 </section>
 </div>
-<footer>
-<img id="landsd-logo" alt="地政總署" src="https://www.landsd.gov.hk/images/landsd_logo.svg" width="120" height="36">
-<div>
-Aerial Photograph from Lands Department　航拍影像 © 香港特別行政區政府地政總署<br>
-高程：<a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>（香港地區為 SRTM／GMTED，courtesy of the U.S. Geological Survey；<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">完整來源</a>）　長洲精細高程：<a href="https://data.gov.hk/en-data/dataset/hk-landsd-openmap-5m-grid-dtm">地政總署 5 米 DTM</a><br>
-直升機模型：<a href="https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4">Animated civilian Helicopter</a> by <a href="https://sketchfab.com/assetfactory">assetfactory</a>，SKETCHFAB Standard（<a href="https://sketchfab.com/licenses">授權說明</a>）
+<div id="rotate-prompt" hidden role="dialog" aria-live="assertive">
+  <div class="rotate-card">
+    <svg class="rotate-icon" viewBox="0 0 64 64" aria-hidden="true"><rect x="22" y="8" width="20" height="36" rx="3"/><path d="M44 40c8-2 14-10 14-20"/><path d="M52 26l6-6-8-1"/></svg>
+    <p>請將手機打橫再玩</p>
+    <small>也可先按右上角開全屏幕</small>
+  </div>
 </div>
- · 任務地點 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a></footer>
+<script>
+(function () {
+  function qs(id) { return document.getElementById(id); }
+  function isCoarse() {
+    try { return !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); }
+    catch (e) { return (navigator.maxTouchPoints || 0) > 0; }
+  }
+  function isPortrait() {
+    try {
+      if (window.matchMedia) {
+        if (window.matchMedia('(orientation: portrait)').matches) return true;
+        if (window.matchMedia('(orientation: landscape)').matches) return false;
+      }
+    } catch (e) {}
+    return window.innerHeight > window.innerWidth;
+  }
+  function syncRotate() {
+    var el = qs('rotate-prompt');
+    if (!el) return;
+    var need = isCoarse() && isPortrait();
+    el.hidden = !need;
+    if (document.body) document.body.classList.toggle('need-landscape', !!need);
+  }
+  function fsElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+  }
+  function updateFsButton() {
+    var on = !!fsElement();
+    var btn = qs('fullscreen');
+    if (btn) {
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? '離開全屏幕' : '全屏幕');
+      btn.setAttribute('title', on ? '離開全屏幕' : '全屏幕');
+      btn.classList.toggle('is-active', on);
+    }
+    if (document.body) document.body.classList.toggle('is-fullscreen', on);
+  }
+  function lockLandscape() {
+    try {
+      var ori = screen.orientation || screen.mozOrientation || screen.msOrientation;
+      if (ori && typeof ori.lock === 'function') {
+        var p = ori.lock('landscape');
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      }
+    } catch (e) {}
+  }
+  function enterFs() {
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!req) { lockLandscape(); return; }
+    try {
+      var out = req.call(el);
+      if (out && typeof out.then === 'function') out.then(lockLandscape).catch(function () { lockLandscape(); });
+      else lockLandscape();
+    } catch (e) { lockLandscape(); }
+  }
+  function exitFs() {
+    var ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (ex) try { ex.call(document); } catch (e) {}
+  }
+  function toggleFs() {
+    if (fsElement()) exitFs();
+    else enterFs();
+  }
+  function bind() {
+    var btn = qs('fullscreen');
+    if (btn) btn.addEventListener('click', function (ev) { ev.preventDefault(); toggleFs(); });
+    syncRotate();
+    updateFsButton();
+  }
+  document.addEventListener('fullscreenchange', function () { updateFsButton(); if (fsElement()) lockLandscape(); });
+  document.addEventListener('webkitfullscreenchange', function () { updateFsButton(); if (fsElement()) lockLandscape(); });
+  window.addEventListener('orientationchange', syncRotate);
+  window.addEventListener('resize', syncRotate);
+  if (window.matchMedia) {
+    try {
+      var q = window.matchMedia('(orientation: portrait)');
+      if (q.addEventListener) q.addEventListener('change', syncRotate);
+      else if (q.addListener) q.addListener(syncRotate);
+      var c = window.matchMedia('(pointer:coarse)');
+      if (c.addEventListener) c.addEventListener('change', syncRotate);
+      else if (c.addListener) c.addListener(syncRotate);
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+</script>
 </main>
 </body>
 </html>
