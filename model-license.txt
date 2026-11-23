@@ -1,0 +1,12 @@
+Helicopter model included in this school edition:
+
+Title: Animated civilian Helicopter
+Author: assetfactory (https://sketchfab.com/assetfactory)
+Source: https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4
+License: SKETCHFAB Standard (https://sketchfab.com/licenses)
+
+This information is copied from the asset extras embedded in the
+user-supplied GLB. No other licence terms were added or inferred.
+The original .glb is kept only as a local source file and is not
+part of the playable runtime, and should not be uploaded to a
+public website unless the licence is reviewed again.

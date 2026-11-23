@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>長洲直升機巡航｜學校版</title>
+<link rel="stylesheet" href="style.css?v=s1-20261123-1010">
+<script>
+window.GAME_BUILD = 's1-20261123-1010';
+window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
+if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
+// ES5 bootstrap remains executable even if a later game script fails to parse.
+(function () {
+  var q = location.search;
+  var mobile = !!((window.matchMedia && window.matchMedia('(pointer:coarse)').matches) ||
+    (navigator.maxTouchPoints > 0 && window.innerWidth < 1100) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  window.GAME_LOW_POWER = /(?:[?&])quality=low(?:&|$)/.test(q) ||
+    (mobile && !/(?:[?&])quality=high(?:&|$)/.test(q));
+  window.__startupInfo = { stage: 'scripts', message: '正在載入程式；地圖不會阻住開始', ready: false };
+  window.__startup = function (stage, message, ready) {
+    window.__startupInfo = { stage: stage, message: String(message || ''), ready: !!ready, lowPower: window.GAME_LOW_POWER };
+    var status = document.getElementById('startup-status');
+    if (status) status.textContent = '版本 ' + window.GAME_BUILD + ' · ' + window.__startupInfo.message;
+    var retry = document.getElementById('startup-retry');
+    if (retry) retry.hidden = !!ready;
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    var state = window.__startupInfo;
+    window.__startup(state.stage, state.message, state.ready);
+  });
+  window.addEventListener('error', function (event) {
+    var target = event.target;
+    if (target && target.dataset && target.dataset.optional === '1') return;
+    if (target && target.tagName === 'SCRIPT') window.__startup('script-error', '程式檔載入失敗，請用下面相容模式重載', false);
+    else if (event.message) window.__startup('script-error', event.message, false);
+  }, true);
+  setTimeout(function () {
+    if (!window.__startupInfo.ready) window.__startup(window.__startupInfo.stage,
+      '仍未啟動（' + window.__startupInfo.stage + '）。可用相容模式重載；如仍失敗，請提供本列截圖、手機型號及瀏覽器版本', false);
+  }, 12000);
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
+  var stamp = document.getElementById('build-id');
+  if (stamp && window.GAME_DEBUG) stamp.hidden = false;
+});
+window.__diag = function(info) {
+  try {
+    var payload = {
+      build: window.GAME_BUILD,
+      type: info && info.type || 'diag',
+      stage: info && info.stage || '',
+      message: String(info && (info.message || info) || ''),
+      source: info && info.source || '',
+      line: info && info.line,
+      col: info && info.col
+    };
+    // Only the local debug server has /__diag/error. On GitHub Pages or file://
+    // this must be a no-op so the browser does not spam 404s.
+    var host = location.hostname;
+    var isLocalHttp = (host === '127.0.0.1' || host === 'localhost' || host === '[::1]') && location.protocol !== 'file:';
+    if (isLocalHttp) {
+      fetch('__diag/error', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(function() {});
+    }
+    var stamp = document.getElementById('build-id');
+    if (stamp && payload.message) {
+      stamp.dataset.error = payload.stage ? (payload.stage + ': ' + payload.message) : payload.message;
+      stamp.hidden = false;
+      var label = payload.stage || payload.type || '';
+      var shortMsg = payload.message ? String(payload.message).replace(/\s+/g, ' ').slice(0, 90) : '';
+      stamp.textContent = '版本 ' + window.GAME_BUILD + (label ? ' · ' + label : '') + (shortMsg ? ' — ' + shortMsg : '');
+    }
+  } catch (ignore) {}
+};
+window.addEventListener('error', function(ev) {
+  window.__diag({
+    type: 'onerror',
+    message: ev.message,
+    source: ev.filename,
+    line: ev.lineno,
+    col: ev.colno
+  });
+});
+window.addEventListener('unhandledrejection', function(ev) {
+  var reason = ev.reason;
+  window.__diag({
+    type: 'unhandledrejection',
+    message: reason && (reason.message || reason)
+  });
+});
+</script>
+<script defer src="hk-map.js?v=s1-20261123-1010" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1010"></script>
+</head>
+<body>
+<main>
+<canvas id="world" aria-label="長洲直升機三維飛行畫面"></canvas>
+<header>
+  <div class="brand">長洲直升機巡航 <small>CHEUNG CHAU SCHOOL EDITION</small></div>
+  <div class="header-tools">
+    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1010</div>
+    <button id="camera" disabled>切換視角 <kbd>C</kbd></button>
+  </div>
+</header>
+<section class="mission"><small>長洲巡航</small><h1 id="target">東灣</h1><p id="guide" aria-live="polite">準備起飛</p><p id="mission-note" hidden>自由飛行中。巡航任務只在開始任務後進行。</p><ol id="route"></ol></section>
+<div id="marker" hidden></div>
+<div id="reticle" hidden>＋</div>
+<aside class="map"><canvas id="map" width="180" height="160" aria-label="航線小地圖"></canvas><small id="map-status">北 ↑　載入長洲地圖…</small>
+    <label class="height-mode-label">高程 <select id="height-mode" title="用來對比全球圖磚與本地長洲高程">
+      <option value="auto">自動（全球高程＋航拍）</option>
+      <option value="tiles">只用全球圖磚</option>
+      <option value="baked">只用本地長洲高程／地圖</option>
+    </select></label></aside>
+<section class="telemetry" aria-label="飛行儀表">
+<div><small>海拔</small><strong id="height">0</strong> m</div><div><small>離地</small><strong id="agl">200</strong> m</div><div><small>地速</small><strong id="speed">0</strong> km/h</div><div><small>航向</small><strong id="heading">000</strong> °</div><div><small>電量</small><strong id="battery">100</strong> %</div>
+</section>
+<div class="keyboard">WASD 平移　 Q / E 轉向　 Space / Shift 升降　 R 重飛</div>
+<div class="touch" aria-label="觸控飛行">
+<div class="pad"><button data-key="KeyW">前</button><button data-key="KeyA">左</button><button data-key="KeyS">後</button><button data-key="KeyD">右</button></div>
+<div class="pad"><button data-key="Space">升</button><button data-key="ShiftLeft">降</button><button data-key="KeyQ">左轉</button><button data-key="KeyE">右轉</button></div>
+</div>
+<section id="stream-notice" hidden aria-label="地圖載入狀態">
+<span id="stream-message" role="status" aria-live="polite"></span>
+<button id="map-retry" type="button">重試地圖</button>
+<small id="model-status"></small>
+</section>
+<div class="overlay" id="overlay">
+<section class="brief">
+<small>CHEUNG CHAU · SCHOOL EDITION</small>
+<h2 id="title">長洲巡航</h2>
+<p id="startup-status" role="status" aria-live="polite">正在載入程式…</p>
+<div class="brief-actions">
+<button id="start" disabled>載入畫面…</button>
+<button id="explore" class="secondary" disabled>自由飛行</button>
+<a id="startup-retry" href="?v=s1-20261123-1010&amp;quality=low">手機相容模式重載</a>
+</div>
+<div class="brief-content">
+<p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 200 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
+<p id="start-hint" class="controls">任務與自由飛行都從離地 200 米開始，不能再降低。在東灣泳灘附近起飛後，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
+<p class="controls">電腦可用 WASD 平移、Q / E 轉向、空白鍵升高、Shift 下降。手機請用畫面上的飛行按鈕。</p>
+</div>
+</section>
+</div>
+<footer>
+<img id="landsd-logo" alt="地政總署" src="https://www.landsd.gov.hk/images/landsd_logo.svg" width="120" height="36">
+<div>
+Aerial Photograph from Lands Department　航拍影像 © 香港特別行政區政府地政總署<br>
+高程：<a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>（香港地區為 SRTM／GMTED，courtesy of the U.S. Geological Survey；<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">完整來源</a>）　長洲精細高程：<a href="https://data.gov.hk/en-data/dataset/hk-landsd-openmap-5m-grid-dtm">地政總署 5 米 DTM</a><br>
+直升機模型：<a href="https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4">Animated civilian Helicopter</a> by <a href="https://sketchfab.com/assetfactory">assetfactory</a>，SKETCHFAB Standard（<a href="https://sketchfab.com/licenses">授權說明</a>）
+</div>
+ · 任務地點 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a></footer>
+</main>
+</body>
+</html>
