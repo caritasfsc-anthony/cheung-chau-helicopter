@@ -16,7 +16,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #fccc76;outline-offset:3p
 kbd{margin-left:.4em;color:#b7d8d0}
 
 /* ---- Flight HUD, all positioned against the 16:9 stage ---- */
-.top-bar,.mission,.map,.touch,#map-credit,#marker,#reticle,.overlay,#stream-notice,#build-id{position:absolute}
+.top-bar,.hint-box,.map,.touch,#map-credit,#marker,#reticle,.overlay,#stream-notice,#build-id{position:absolute}
 .top-bar{top:2.6%;left:2.1%;right:2.1%;height:10.3%;display:flex;align-items:flex-start;gap:1.2%;z-index:55;pointer-events:none}
 .top-bar>*{pointer-events:auto}
 .icon-btn{flex:none;height:100%;aspect-ratio:1;padding:0;border:0;border-radius:22%;background:#0e2a35f0;display:inline-flex;align-items:center;justify-content:center;color:#fff}
@@ -46,11 +46,14 @@ kbd{margin-left:.4em;color:#b7d8d0}
 #compass-needle svg{width:100%;height:100%;display:block}
 #compass-needle path{fill:#fff}
 
-.mission{top:16%;left:1.4%;width:25%;max-width:26%;padding:1.4% 1.5% 1.5%;background:#0e2a35f0;border:0;border-radius:1.3cqw;z-index:6}
-.mission small{display:block;font-size:1.55cqh;letter-spacing:.16em;color:#c5ddd8;margin:0 0 .55em}
-.mission h1{font-size:3.6cqh;font-weight:800;margin:0 0 .55em;line-height:1.1;letter-spacing:.02em}
-.mission p{font-size:1.7cqh;color:#d5e6e2;margin:0;line-height:1.45;letter-spacing:0;font-weight:600}
-#mission-note{color:#ffd48a;margin-bottom:.5em}
+.hint-box{top:15.6%;left:2.3%;width:34.5%;max-width:36%;display:flex;align-items:center;gap:1.15cqw;padding:1.05% 1.7% 1.05% 1.2%;background:#FFD200;color:#111;border-radius:999px;z-index:6;isolation:isolate;overflow:visible;box-shadow:0 0.4cqh 1.2cqh #0003}
+.hint-box .hint-bulb{flex:none;width:5.4cqh;height:5.4cqh;display:block}
+.hint-copy{min-width:0;flex:1}
+.hint-box .hint-label,.hint-box .hint-text{margin:0;color:#111;font-weight:900;letter-spacing:0;line-height:1.25}
+.hint-box .hint-label{font-size:2.15cqh}
+.hint-box .hint-text{font-size:2.15cqh}
+.hint-box.is-near::before{content:"";position:absolute;inset:-0.5cqh;border-radius:inherit;z-index:-1;background:conic-gradient(#ff3b6b,#ffd400,#3dff8a,#3db7ff,#b44dff,#ff3b6b);animation:hint-iridescent 2s linear infinite}
+@keyframes hint-iridescent{to{transform:rotate(360deg)}}
 
 .map{top:25%;right:2.6%;width:19.7%;aspect-ratio:334/316;padding:0;overflow:hidden;background:#0b2530;border:0.35cqw solid #fff;border-radius:1.7cqw;z-index:6;text-align:center;box-shadow:0 8px 24px #0006}
 .map canvas{display:block;width:100%;height:100%}
@@ -169,6 +172,7 @@ body:has(#intro:not([hidden])) #fullscreen{margin-left:auto}
 /* Story arrows, measured on 1600×900 PDF renders */
 #intro .intro-next{left:91.31%;top:82.67%;width:6.13%;height:10.89%;border-radius:50%}
 #intro .intro-back{left:2.56%;top:82.67%;width:6.13%;height:10.89%;border-radius:50%}
+#intro .intro-go{left:32.45%;top:72.04%;width:36.2%;height:19.81%;border-radius:999px}
 #intro-status{position:absolute;left:50%;bottom:18.5%;transform:translateX(-50%);z-index:3;margin:0;max-width:54%;padding:.45em 1em;border-radius:999px;background:#0e2a35f2;color:#ffdc96;font-size:1.7cqh;font-weight:700;letter-spacing:.02em;text-align:center;pointer-events:none}
 #intro-status[hidden]{display:none!important}
 #title-home{margin-top:0;background:#0b2935;color:#f4f6ea;border:1px solid #b8dbd65e;font-weight:800;padding:12px 24px}
@@ -183,6 +187,7 @@ body:has(#intro:not([hidden])) #fullscreen{margin-left:auto}
    invisible hitbox. START's inset matches its slightly enlarged touch target. */
 #intro button.intro-hit::after{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(ellipse at center,#fff7 0%,#ffe7a52b 55%,#ffe7a500 75%);border:.25cqh solid #fff2;opacity:0;pointer-events:none;transition:opacity 110ms ease-out;box-shadow:inset 0 0 1.5cqh #fff8}
 #intro button.intro-start::after{inset:6% 6.7%;border-radius:999px}
+#intro button.intro-go::after{inset:10% 8%;border-radius:999px}
 #intro button.intro-hit:active::after{opacity:.85}
 #intro button.intro-hit.feedback-pulse::after{animation:painted-button-pulse 240ms ease-out}
 @media(hover:hover){#intro button.intro-hit:hover::after{opacity:.32}}
@@ -198,7 +203,7 @@ body:has(#intro:not([hidden])) #fullscreen{margin-left:auto}
 @keyframes results-arrive{from{opacity:0;transform:translateY(.6cqh)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){
   .icon-btn,.pad.dpad button,.brief button,#map-retry,#intro button.intro-hit::after{transition:none!important}
-  #scene-fade.is-fading,.overlay:not([hidden]) .brief,#intro button.intro-hit.feedback-pulse::after{animation:none!important}
+  #scene-fade.is-fading,.overlay:not([hidden]) .brief,#intro button.intro-hit.feedback-pulse::after,.hint-box.is-near::before{animation:none!important}
   .icon-btn:active,.brief button:active,#map-retry:active,.pad.dpad button.pressed,.pad.dpad button:active{transform:none}
 }
 

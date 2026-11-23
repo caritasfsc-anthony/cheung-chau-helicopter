@@ -5,15 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store">
 <title>長洲直升機巡航｜學校版</title>
-<link rel="stylesheet" href="style.css?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/01-title.jpg?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/02-depart.jpg?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/03-late.jpg?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/04-skill.jpg?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/05-accident.jpg?v=s1-20261123-1400">
-<link rel="preload" as="image" href="intro/06-news.jpg?v=s1-20261123-1400">
+<link rel="stylesheet" href="style.css?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/01-title.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/02-depart.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/03-late.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/04-skill.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/05-accident.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/06-news.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s1-search.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s1-found.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s2-search.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s2-found.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s3-search.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s3-found.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s4-search.jpg?v=s1-20261123-1540">
+<link rel="preload" as="image" href="intro/s4-found.jpg?v=s1-20261123-1540">
 <script>
-window.GAME_BUILD = 's1-20261123-1400';
+window.GAME_BUILD = 's1-20261123-1540';
 window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
 // ES5 bootstrap remains executable even if a later game script fails to parse.
@@ -100,14 +108,14 @@ window.addEventListener('unhandledrejection', function(ev) {
   });
 });
 </script>
-<script defer src="hk-map.js?v=s1-20261123-1400" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
-<script defer src="game.js?v=s1-20261123-1400"></script>
+<script defer src="hk-map.js?v=s1-20261123-1540" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1540"></script>
 </head>
 <body>
 <main>
 <div id="stage">
 <canvas id="world" aria-label="長洲直升機三維飛行畫面"></canvas>
-<div id="build-id" title="版本識別" hidden>版本 s1-20261123-1400</div>
+<div id="build-id" title="版本識別" hidden>版本 s1-20261123-1540</div>
 <div class="top-bar">
   <button type="button" id="home" class="icon-btn flight-hud" aria-label="主頁" title="主頁">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11.2 12 4.4l7.5 6.8v8.4a1.2 1.2 0 0 1-1.2 1.2h-4.3v-5.3h-4v5.3H5.7a1.2 1.2 0 0 1-1.2-1.2z"/></svg>
@@ -135,7 +143,19 @@ window.addEventListener('unhandledrejection', function(ev) {
     <svg class="fs-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h5V4M15 4v5h5M4 15h5v5M20 15h-5v5"/></svg>
   </button>
 </div>
-<section class="mission flight-hud"><small>長洲巡航</small><h1 id="target">東灣</h1><p id="guide" aria-live="polite">準備起飛</p><p id="mission-note" hidden>自由飛行中。巡航任務只在開始任務後進行。</p></section>
+<section class="hint-box flight-hud" id="hint-box" aria-label="提示">
+  <svg class="hint-bulb" viewBox="0 0 64 64" aria-hidden="true">
+    <g fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M32 3.5v7.2M14.2 11.8l5.2 5.2M49.8 11.8l-5.2 5.2M5.5 32h7.2M58.5 32h-7.2"/>
+      <path d="M21 28.2a11 11 0 1 1 22 0c0 4.4-2.3 7.2-4.8 9.9V42H25.8v-3.9C23.3 35.4 21 32.6 21 28.2z"/>
+      <path d="M25.8 45.2h12.4M27.6 49.4h8.8"/>
+    </g>
+  </svg>
+  <div class="hint-copy">
+    <p class="hint-label">提示：</p>
+    <p class="hint-text" id="hint-text" aria-live="polite">與海洋相連的狹長地帶</p>
+  </div>
+</section>
 <div id="marker" hidden></div>
 <div id="reticle" hidden>＋</div>
 <aside class="map flight-hud"><canvas id="map" width="256" height="256" aria-label="航線小地圖"></canvas></aside>
@@ -154,7 +174,7 @@ window.addEventListener('unhandledrejection', function(ev) {
 </div>
 </div>
 <div id="map-credit" class="flight-hud">
-  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1400" width="120" height="14" alt="地政總署">
+  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1540" width="120" height="14" alt="地政總署">
   <p>Aerial Photograph from Lands Department／航拍影像 © 地政總署</p>
 </div>
 <section id="stream-notice" hidden aria-label="地圖載入狀態">
@@ -165,18 +185,18 @@ window.addEventListener('unhandledrejection', function(ev) {
 <div class="overlay" id="overlay" hidden>
 <section class="brief">
 <small>長洲直升機巡航｜學校版</small>
-<h2 id="title">長洲巡航</h2>
+<h2 id="title">長洲直升機巡航</h2>
 <p id="startup-status" role="status" aria-live="polite">正在載入程式…</p>
 <div class="brief-actions">
 <button type="button" id="start" disabled>載入畫面…</button>
 <button type="button" id="title-home">返回標題</button>
 <button type="button" id="explore" class="secondary" hidden disabled>自由飛行</button>
-<a id="startup-retry" href="?v=s1-20261123-1400&amp;quality=low">手機相容模式重載</a>
+<a id="startup-retry" href="?v=s1-20261123-1540&amp;quality=low">手機相容模式重載</a>
 </div>
 <div class="brief-content">
 <p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 100 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
 <div id="start-help" hidden>
-<p id="start-hint" class="controls">任務與自由飛行都從離地 100 米開始，不能再降低。本次從長洲南面海域、海拔 589 米起飛，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
+<p id="start-hint" class="controls">任務與自由飛行都從離地 100 米開始，不能再降低。本次從長洲南面海域、海拔 589 米起飛。限時 10 分鐘；依畫面上的提示尋找考察團成員，無需返回碼頭或降落。</p>
 <p class="controls">電腦同手機畫面都會顯示左下 WASD 與右下 J／Q／R／M 控制鍵。鍵盤亦可用空白鍵升高，Shift 或 X 下降，E 亦可右轉。手機請打橫再玩，建議先開全屏幕。</p>
 </div>
 </div>
@@ -184,17 +204,26 @@ window.addEventListener('unhandledrejection', function(ev) {
 </section>
 </div>
 <div id="intro">
-  <img id="intro-art" src="intro/01-title.jpg?v=s1-20261123-1400" width="1920" height="1080" alt="郊野學園考察團　出發吧～認識海岸地貌" draggable="false">
+  <img id="intro-art" src="intro/01-title.jpg?v=s1-20261123-1540" width="1920" height="1080" alt="郊野學園考察團　出發吧～認識海岸地貌" draggable="false">
   <div id="intro-preload" hidden aria-hidden="true">
-    <img src="intro/02-depart.jpg?v=s1-20261123-1400" alt="" draggable="false">
-    <img src="intro/03-late.jpg?v=s1-20261123-1400" alt="" draggable="false">
-    <img src="intro/04-skill.jpg?v=s1-20261123-1400" alt="" draggable="false">
-    <img src="intro/05-accident.jpg?v=s1-20261123-1400" alt="" draggable="false">
-    <img src="intro/06-news.jpg?v=s1-20261123-1400" alt="" draggable="false">
+    <img src="intro/02-depart.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/03-late.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/04-skill.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/05-accident.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/06-news.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s1-search.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s1-found.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s2-search.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s2-found.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s3-search.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s3-found.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s4-search.jpg?v=s1-20261123-1540" alt="" draggable="false">
+    <img src="intro/s4-found.jpg?v=s1-20261123-1540" alt="" draggable="false">
   </div>
   <button type="button" id="intro-start" class="intro-hit intro-start" aria-label="START"></button>
   <button type="button" id="intro-back" class="intro-hit intro-back" aria-label="上一頁" hidden></button>
   <button type="button" id="intro-next" class="intro-hit intro-next" aria-label="下一頁" hidden></button>
+  <button type="button" id="intro-go" class="intro-hit intro-go" aria-label="LET'S GO" hidden></button>
   <p id="intro-status" hidden role="status" aria-live="polite"></p>
 </div>
 <div id="scene-fade" hidden aria-hidden="true"><img id="scene-fade-art" alt="" draggable="false"></div>

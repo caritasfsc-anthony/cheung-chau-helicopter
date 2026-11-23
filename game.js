@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1400';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1540';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -68,11 +68,11 @@ function enableFlightStart() {
   if (stamp && window.GAME_DEBUG && !window.__heliInitError && !stamp.dataset.error) {
     stamp.textContent = '版本 ' + GAME_BUILD + ' · 已初始化';
   }
-  // If the player already pressed next on the last story page, take off now.
+  // If the player already pressed LET'S GO on a section title, start or resume.
   // Guarded so the regression fixture (which only evals this slice) is safe.
-  if (window.__introPendingStart && typeof tryStartMissionFromIntro === 'function') {
+  if (window.__introPendingStart && typeof startOrResumeSection === 'function') {
     window.__introPendingStart = false;
-    tryStartMissionFromIntro();
+    startOrResumeSection();
   }
 }
 
@@ -110,7 +110,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const bearing = (a, b) => Math.atan2(b.x - a.x, b.z - a.z);
 const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-const run = { mode: 'ready', next: 0, time: 0, camera: false, explore: false };
+const run = { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false };
 let tiles = null;
 let bakedLand = null;
 const atlasTextures = [];
@@ -243,7 +243,7 @@ function placeCraft(place, explore) {
 
 
 const defaultBriefing = byId('briefing') ? byId('briefing').textContent : '';
-const defaultTitle = byId('title') ? byId('title').textContent : '長洲巡航';
+const defaultTitle = byId('title') ? byId('title').textContent : '長洲直升機巡航';
 
 const INTRO_PAGES = [
   { src: 'intro/01-title.jpg', alt: '郊野學園考察團　出發吧～認識海岸地貌' },
@@ -253,7 +253,30 @@ const INTRO_PAGES = [
   { src: 'intro/05-accident.jpg', alt: '可惜中途發生意外，眾人下落不明' },
   { src: 'intro/06-news.jpg', alt: '飛行服務隊於長洲海岸展開搜救，準備出發' }
 ];
+const SECTIONS = [
+  {
+    search: 'intro/s1-search.jpg', found: 'intro/s1-found.jpg',
+    searchAlt: '尋找莫博士　出發吧～認識海岸地貌', foundAlt: '已找到莫博士',
+    character: '莫博士', hint: '與海洋相連的狹長地帶'
+  },
+  {
+    search: 'intro/s2-search.jpg', found: 'intro/s2-found.jpg',
+    searchAlt: '尋找金剛仔　出發吧～認識海岸地貌', foundAlt: '已找到莫博士同金剛仔',
+    character: '金剛仔', hint: '沿海巨大岩石附近'
+  },
+  {
+    search: 'intro/s3-search.jpg', found: 'intro/s3-found.jpg',
+    searchAlt: '尋找小螢　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔同小螢',
+    character: '小螢', hint: '一條貫穿岩壁嘅狹窄縫隙'
+  },
+  {
+    search: 'intro/s4-search.jpg', found: 'intro/s4-found.jpg',
+    searchAlt: '尋找斑班長　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔、小螢同斑班長',
+    character: '斑班長', hint: '海面上嘅獨立岩柱'
+  }
+];
 let introStep = 0;
+let introPhase = 'story';
 let introTransitioning = false;
 let introTransitionTimer = null;
 const INTRO_FADE_MS = 220;
@@ -329,6 +352,7 @@ function showIntro(step) {
   const node = byId('intro');
   const art = byId('intro-art');
   if (!node || !art) return;
+  introPhase = 'story';
   introStep = step;
   window.__introPendingStart = false;
   const page = INTRO_PAGES[step];
@@ -340,6 +364,49 @@ function showIntro(step) {
   if (byId('intro-next')) byId('intro-next').hidden = step === 0;
   // Back exists on story pages 3–6 only (steps 2–5); hidden on page 2 (step 1).
   if (byId('intro-back')) byId('intro-back').hidden = step < 2;
+  if (byId('intro-go')) byId('intro-go').hidden = true;
+  setIntroStatus('');
+}
+
+function showSearchPage(index) {
+  const node = byId('intro');
+  const art = byId('intro-art');
+  const section = SECTIONS[index];
+  if (!node || !art || !section) return;
+  introPhase = 'search';
+  window.__introPendingStart = false;
+  art.src = section.search + '?v=' + GAME_BUILD;
+  art.alt = section.searchAlt;
+  node.hidden = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('intro-start')) byId('intro-start').hidden = true;
+  if (byId('intro-next')) byId('intro-next').hidden = true;
+  if (byId('intro-back')) byId('intro-back').hidden = true;
+  if (byId('intro-go')) {
+    byId('intro-go').hidden = false;
+    byId('intro-go').setAttribute('aria-label', "LET'S GO，開始尋找" + section.character);
+  }
+  setIntroStatus('');
+}
+
+function showFoundPage(index) {
+  const node = byId('intro');
+  const art = byId('intro-art');
+  const section = SECTIONS[index];
+  if (!node || !art || !section) return;
+  introPhase = 'found';
+  window.__introPendingStart = false;
+  art.src = section.found + '?v=' + GAME_BUILD;
+  art.alt = section.foundAlt;
+  node.hidden = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('intro-start')) byId('intro-start').hidden = true;
+  if (byId('intro-go')) byId('intro-go').hidden = true;
+  if (byId('intro-back')) byId('intro-back').hidden = true;
+  if (byId('intro-next')) {
+    byId('intro-next').hidden = false;
+    byId('intro-next').setAttribute('aria-label', index >= LAST_ROUTE_INDEX ? '查看結果' : '下一頁');
+  }
   setIntroStatus('');
 }
 
@@ -349,7 +416,7 @@ function isCoarsePointer() {
 }
 
 function startIntroStory() {
-  if (introTransitioning || !introVisible() || introStep !== 0) return;
+  if (introTransitioning || !introVisible() || introPhase !== 'story' || introStep !== 0) return;
   pulseIntroButton('intro-start');
   // Fullscreen remains synchronous in the original click/keyboard user gesture.
   if (isCoarsePointer() && typeof window.__enterFullscreen === 'function') {
@@ -370,7 +437,8 @@ function showInitFailureOverlay() {
   setIntroStatus('');
 }
 
-function tryStartMissionFromIntro() {
+function startOrResumeSection() {
+  if (introTransitioning || (introVisible() && introPhase !== 'search')) return;
   if (start.textContent === '未能開始飛行') {
     window.__introPendingStart = false;
     showInitFailureOverlay();
@@ -378,7 +446,13 @@ function tryStartMissionFromIntro() {
   }
   if (start.dataset.unlocked === '1') {
     window.__introPendingStart = false;
-    transitionIntroScene(() => startFlight(false));
+    pulseIntroButton('intro-go');
+    // First takeoff uses startFlight (also what the intro fixture mocks).
+    // Later sections resume in place via beginSectionFlight, without resetting the clock.
+    transitionIntroScene(() => {
+      if (run.sessionStarted && typeof beginSectionFlight === 'function') beginSectionFlight();
+      else startFlight(false);
+    });
     return;
   }
   window.__introPendingStart = true;
@@ -386,15 +460,21 @@ function tryStartMissionFromIntro() {
 }
 
 function introNext() {
-  if (introTransitioning || !introVisible() || introStep === 0) return;
+  if (introTransitioning || !introVisible()) return;
+  if (introPhase === 'found') {
+    pulseIntroButton('intro-next');
+    advanceFromFound();
+    return;
+  }
+  if (introPhase !== 'story' || introStep === 0) return;
   pulseIntroButton('intro-next');
   if (introStep < INTRO_PAGES.length - 1) transitionIntroScene(() => showIntro(introStep + 1));
-  else tryStartMissionFromIntro();
+  else transitionIntroScene(() => showSearchPage(0));
 }
 
 function introBack() {
-  // No wrap past story page 2 (step 1).
-  if (introTransitioning || !introVisible() || introStep <= 1) return;
+  // No wrap past story page 2 (step 1). Back is not drawn on section or found pages.
+  if (introTransitioning || !introVisible() || introPhase !== 'story' || introStep <= 1) return;
   pulseIntroButton('intro-back');
   transitionIntroScene(() => showIntro(introStep - 1));
 }
@@ -404,6 +484,14 @@ function handleIntroKey(event) {
   if (event.repeat || introTransitioning) { event.preventDefault(); return true; }
   if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight' || event.code === 'ArrowLeft') {
     event.preventDefault();
+  }
+  if (introPhase === 'search') {
+    if (event.code === 'Enter' || event.code === 'Space') startOrResumeSection();
+    return true;
+  }
+  if (introPhase === 'found') {
+    if (event.code === 'Enter' || event.code === 'ArrowRight') introNext();
+    return true;
   }
   if (introStep === 0 && (event.code === 'Enter' || event.code === 'Space')) {
     startIntroStory();
@@ -425,13 +513,21 @@ function bindIntroStory() {
     const image = new Image();
     image.src = page.src + '?v=' + GAME_BUILD;
   });
+  SECTIONS.forEach(section => {
+    [section.search, section.found].forEach(src => {
+      const image = new Image();
+      image.src = src + '?v=' + GAME_BUILD;
+    });
+  });
   const startBtn = byId('intro-start');
   const nextBtn = byId('intro-next');
   const backBtn = byId('intro-back');
+  const goBtn = byId('intro-go');
   if (startBtn) startBtn.addEventListener('click', startIntroStory);
   if (nextBtn) nextBtn.addEventListener('click', introNext);
   if (backBtn) backBtn.addEventListener('click', introBack);
-  [startBtn, nextBtn, backBtn].forEach(node => {
+  if (goBtn) goBtn.addEventListener('click', startOrResumeSection);
+  [startBtn, nextBtn, backBtn, goBtn].forEach(node => {
     if (node) node.addEventListener('pointerdown', () => {
       if (!introTransitioning) pulseIntroButton(node.id);
     });
@@ -442,33 +538,67 @@ function bindIntroStory() {
 function goHome() {
   if (introTransitioning) return;
   clearFlightInput();
-  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false });
+  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false });
   window.__introPendingStart = false;
   if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('title')) byId('title').textContent = defaultTitle;
   if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
-  if (byId('mission-note')) byId('mission-note').hidden = true;
   if (byId('marker')) byId('marker').hidden = true;
+  if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
   transitionIntroScene(() => showIntro(0));
+}
+
+function hideFlightOverlays() {
+  if (byId('intro')) byId('intro').hidden = true;
+  if (byId('overlay')) byId('overlay').hidden = true;
+}
+
+function beginSectionFlight() {
+  window.__introPendingStart = false;
+  const first = !run.sessionStarted;
+  if (first) {
+    const place = selectedPlace();
+    const free = !place.mission;
+    Object.assign(run, { mode: 'flying', next: 0, time: 0, camera: false, explore: free, sessionStarted: true });
+    placeCraft(place, free);
+  } else {
+    run.mode = 'flying';
+  }
+  clearFlightInput();
+  hideFlightOverlays();
+  if (window.__loadHeli) window.__loadHeli();
+  start.blur();
 }
 
 function startFlight(explore = false) {
   const place = selectedPlace();
   const free = explore || !place.mission;
-  // Mission starts at station 0 (東灣). Takeoff is offset from that gate so it
-  // is not auto-completed. Explore is free flight inside Cheung Chau.
+  // A full restart (or first takeoff) uses the south-sea spawn and a fresh clock.
   window.__introPendingStart = false;
-  Object.assign(run, { mode: 'flying', next: 0, time: 0, camera: false, explore: free });
+  Object.assign(run, { mode: 'flying', next: 0, time: 0, camera: false, explore: free, sessionStarted: !free });
   placeCraft(place, free);
   clearFlightInput();
-  if (byId('intro')) byId('intro').hidden = true;
-  byId('overlay').hidden = true;
+  hideFlightOverlays();
   if (window.__loadHeli) window.__loadHeli();
   start.blur();
-  if (byId('mission-note')) {
-    byId('mission-note').hidden = !free;
+}
+
+function retryMission() {
+  if (introTransitioning) return;
+  if (start.textContent === '未能開始飛行') {
+    showInitFailureOverlay();
+    return;
   }
+  clearFlightInput();
+  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false });
+  window.__introPendingStart = false;
+  if (byId('title')) byId('title').textContent = defaultTitle;
+  if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
+  if (byId('marker')) byId('marker').hidden = true;
+  if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
+  if (start.dataset.unlocked === '1') start.textContent = '開始任務';
+  transitionIntroScene(() => showSearchPage(0));
 }
 
 function finish(success) {
@@ -476,10 +606,10 @@ function finish(success) {
   clearFlightInput();
   if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = false;
-  byId('title').textContent = success ? '巡航完成' : '巡航中斷';
+  byId('title').textContent = success ? '考察完成' : '考察中斷';
   byId('briefing').textContent = success
-    ? '已完成東灣、南氹、東灣仔、觀音灣（饅頭石）巡查。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
-    : '電量耗盡。你可以由東灣再試一次。';
+    ? '已找到莫博士、金剛仔、小螢同斑班長。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
+    : '電量耗盡。可以再試一次。';
   start.textContent = '再飛一次';
   start.disabled = start.dataset.unlocked !== '1';
   if (byId('startup-status')) byId('startup-status').hidden = true;
@@ -488,6 +618,20 @@ function finish(success) {
   if (byId('explore')) byId('explore').hidden = true;
   if (byId('title-home')) byId('title-home').hidden = false;
   start.focus();
+}
+
+function advanceFromFound() {
+  if (introTransitioning || introPhase !== 'found') return;
+  if (run.next >= LAST_ROUTE_INDEX) {
+    transitionIntroScene(() => finish(true));
+    return;
+  }
+  const next = run.next + 1;
+  transitionIntroScene(() => {
+    run.next = next;
+    run.mode = 'section';
+    showSearchPage(next);
+  });
 }
 
 function update(dt) {
@@ -515,8 +659,16 @@ function update(dt) {
   if (!run.explore) {
     const target = missionTarget();
     const arrived = Math.hypot(craft.x - target.x, craft.z - target.z) <= 70;
-    if (arrived && run.next < LAST_ROUTE_INDEX) run.next++;
-    else if (arrived && run.next === LAST_ROUTE_INDEX) finish(true);
+    if (arrived) arriveAtStation();
+  }
+}
+
+function arriveAtStation() {
+  if (run.mode !== 'flying' || run.explore) return;
+  clearFlightInput();
+  run.mode = 'found';
+  if (typeof transitionIntroScene === 'function' && typeof showFoundPage === 'function') {
+    transitionIntroScene(() => showFoundPage(run.next));
   }
 }
 
@@ -524,7 +676,7 @@ function toggleCamera() {
   if (run.mode === 'flying') run.camera = !run.camera;
 }
 
-start.addEventListener('click', () => startFlight(false));
+start.addEventListener('click', () => retryMission());
 if (byId('explore')) byId('explore').addEventListener('click', () => startFlight(true));
 if (byId('home')) byId('home').addEventListener('click', goHome);
 if (byId('title-home')) byId('title-home').addEventListener('click', goHome);
@@ -1251,7 +1403,8 @@ function createObjects(seconds) {
   const radius = 52;
   const centreY = Math.max(target.y, terrainFloor(target.x, target.z));
   const stripe = 3.5;
-  if (run.mode === 'flying') {
+  const showRing = run.mode === 'flying' && !run.explore && distance(craft, target) <= 300;
+  if (showRing) {
     function ringPoint(angle, r) {
       const lateral = Math.cos(angle)*r;
       return [target.x+lateral*Math.cos(angleToCraft),centreY+Math.sin(angle)*r,
@@ -1309,18 +1462,22 @@ function drawMap() {
     return [clamp(p[0], 4, width - 4), clamp(p[1], 4, height - 4)];
   };
   if (!run.explore) {
-    map.strokeStyle = '#e9bb6b';
-    map.setLineDash([3,3]);
-    map.beginPath();
-    route.forEach((point,index) => map[index ? 'lineTo' : 'moveTo'](...plot(point.x,point.z)));
-    map.stroke();
-    map.setLineDash([]);
-    route.slice(0,-1).forEach((point,index) => {
-      map.fillStyle = index===run.next || (index===0 && run.next===LAST_ROUTE_INDEX) ? '#ffca6c' : '#b3e9c6';
+    const foundCount = (run.mode === 'found' || run.mode === 'ended') ? run.next + 1 : run.next;
+    for (let i = 0; i < foundCount; i++) {
+      map.fillStyle = '#b3e9c6';
       map.beginPath();
-      map.arc(...plot(point.x,point.z),3,0,Math.PI*2);
+      map.arc(...plot(route[i].x, route[i].z), 3, 0, Math.PI * 2);
       map.fill();
-    });
+    }
+    if (run.mode === 'flying') {
+      const target = missionTarget();
+      if (distance(craft, target) <= 300) {
+        map.fillStyle = '#ffca6c';
+        map.beginPath();
+        map.arc(...plot(target.x, target.z), 3, 0, Math.PI * 2);
+        map.fill();
+      }
+    }
   }
   const [x,z] = plot(craft.x,craft.z);
   map.save();
@@ -1356,7 +1513,16 @@ function drawHud(camera, seconds) {
   const target = missionTarget();
   const marker = byId('marker');
   const flying = run.mode === 'flying';
-  marker.hidden = !flying || run.explore;
+  const flyingMission = flying && !run.explore;
+  const range = distance(craft, target);
+  const hintBox = byId('hint-box');
+  if (hintBox) {
+    hintBox.hidden = !flyingMission;
+    hintBox.classList.toggle('is-near', flyingMission && range <= 600);
+  }
+  const hintText = byId('hint-text');
+  if (hintText && SECTIONS[run.next]) hintText.textContent = SECTIONS[run.next].hint;
+  marker.hidden = !(flyingMission && range <= 300);
   byId('reticle').hidden = !flying || !run.camera;
   if (!marker.hidden) {
     const relative = [target.x-camera.eye[0],target.y-camera.eye[1],target.z-camera.eye[2]];
@@ -1368,23 +1534,10 @@ function drawHud(camera, seconds) {
     marker.style.left = clamp(x, 90, width-90)+'px';
     marker.style.top = clamp(y, 80, height-48)+'px';
     const hint = depth<=1 || x<90 ? (side<0?'‹ ':'› ') : x>width-90 ? '› ' : '';
-    marker.textContent = hint + target.name + ' · ' + Math.round(distance(craft,target)) + ' m';
+    marker.textContent = hint + Math.round(range) + ' m';
   }
   if (seconds - hudTime < .12) return;
   hudTime = seconds;
-  if (run.explore) {
-    const nearest = HK.places.slice().sort((a,b) => {
-      const pa = HK.toXZ(a.lat,a.lon), pb = HK.toXZ(b.lat,b.lon);
-      return Math.hypot(craft.x-pa.x,craft.z-pa.z) - Math.hypot(craft.x-pb.x,craft.z-pb.z);
-    })[0];
-    byId('target').textContent = '自由飛行';
-    byId('guide').textContent = '長洲自由飛行 · 可觀看島上航拍';
-  } else {
-    byId('target').textContent = target.name;
-    byId('guide').textContent = run.next===LAST_ROUTE_INDEX ?
-      '飛入綠色終點圈即可完成' :
-      '飛向黃圈 · ' + target.name + ' · 目標海拔 ' + Math.round(target.y) + ' 米';
-  }
   byId('height').textContent = Math.round(craft.y);
   if (byId('agl')) byId('agl').textContent = Math.max(0, Math.round(altitudeAgl(craft.x, craft.y, craft.z)));
   byId('speed').textContent = Math.round(Math.hypot(craft.vx,craft.vz)*3.6);
