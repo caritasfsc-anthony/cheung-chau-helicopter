@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1316';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1345';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -209,7 +209,7 @@ function elevation(x, z) {
 }
 
 function selectedPlace() {
-  return (HK.places && HK.places[0]) || { id: 'tung-wan', name: '東灣', lat: 22.2107293, lon: 114.0297723, yaw: 1.1306038649673362, mission: true };
+  return (HK.places && HK.places[0]) || { id: 'south-approach', name: '南面海域', lat: 22.1892017, lon: 114.0360482, yaw: 5.934119456780721, altitude: 589, mission: true };
 }
 
 const MIN_AGL = (typeof HK !== 'undefined' && HK.MIN_AGL) || 100;
@@ -228,10 +228,13 @@ function altitudeAgl(x, y, z) {
 
 function placeCraft(place, explore) {
   const pos = HK.toXZ(place.lat, place.lon);
-  // All starts, teleports and restarts stay at least 100 m AGL, never below sea.
+  // Global floor stays 100 m AGL; a place may start higher (e.g. 589 m).
+  const floor = terrainFloor(pos.x, pos.z);
+  const ceiling = (typeof HK !== 'undefined' && HK.MAX_ALTITUDE) || 2500;
+  const startY = place.altitude != null ? clamp(place.altitude, floor, ceiling) : floor;
   Object.assign(craft, {
     x: pos.x,
-    y: terrainFloor(pos.x, pos.z),
+    y: startY,
     z: pos.z,
     vx: 0, vy: 0, vz: 0,
     yaw: place.yaw == null ? 0 : place.yaw
@@ -495,7 +498,7 @@ function update(dt) {
   craft.yaw += axis('KeyE', 'KeyQ') * dt * 1.7;
   const forward = axis('KeyW', 'KeyS');
   const side = axis('KeyD', 'KeyA');
-  const vertical = Number(active('Space')) - Number(active('ShiftLeft') || active('ShiftRight'));
+  const vertical = Number(active('KeyJ') || active('Space')) - Number(active('KeyM') || active('ShiftLeft') || active('ShiftRight') || active('KeyX'));
   const speed = 51 / Math.max(1, Math.hypot(forward, side));
   const sine = Math.sin(craft.yaw), cosine = Math.cos(craft.yaw);
   const ease = 1 - Math.exp(-4 * dt);
@@ -526,7 +529,7 @@ if (byId('explore')) byId('explore').addEventListener('click', () => startFlight
 if (byId('home')) byId('home').addEventListener('click', goHome);
 if (byId('title-home')) byId('title-home').addEventListener('click', goHome);
 bindIntroStory();
-const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'ShiftRight']);
+const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'Space', 'ShiftLeft', 'ShiftRight', 'KeyX']);
 window.addEventListener('keydown', event => {
   if (event.target.closest('select,input,textarea,[contenteditable]')) return;
   if (handleIntroKey(event)) return;
@@ -1303,7 +1306,8 @@ function drawMap() {
   }
   const plot = (x,z) => {
     const p = worldToPix(x,z);
-    return [clamp(p[0], 4, 176), clamp(p[1], 4, 156)];
+    const width = map.canvas.width, height = map.canvas.height;
+    return [clamp(p[0], 4, width - 4), clamp(p[1], 4, height - 4)];
   };
   if (!run.explore) {
     map.strokeStyle = '#e9bb6b';

@@ -25,8 +25,8 @@ const HK = (() => {
   };
 
   const places = [
-    { id: 'tung-wan', name: '東灣', lat: 22.2107293, lon: 114.0297723, yaw: 1.1306038649673362, mission: true,
-      source: 'https://www.openstreetmap.org/way/44717226' }
+    { id: 'south-approach', name: '南面海域', lat: 22.1892017, lon: 114.0360482,
+      yaw: 5.934119456780721, altitude: 589, mission: true }
   ];
 
   const IMAGERY_TMPL = 'https://mapapi.hkmapservice.gov.hk/gs/api/v1.0.0/xyz/imagery/WGS84/{z}/{x}/{y}.png';
