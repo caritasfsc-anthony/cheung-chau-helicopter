@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1215';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1240';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -64,6 +64,12 @@ function enableFlightStart() {
   if (stamp && window.GAME_DEBUG && !window.__heliInitError && !stamp.dataset.error) {
     stamp.textContent = '版本 ' + GAME_BUILD + ' · 已初始化';
   }
+  // If the player already pressed next on the last story page, take off now.
+  // Guarded so the regression fixture (which only evals this slice) is safe.
+  if (window.__introPendingStart && typeof startFlight === 'function') {
+    window.__introPendingStart = false;
+    startFlight(false);
+  }
 }
 
 
@@ -77,6 +83,7 @@ canvas.addEventListener('webglcontextlost', event => {
   event.preventDefault();
   contextLost = true;
   clearFlightInput();
+  if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = false;
   showInitFailure('context-lost', Error('手機 3D 資源已中斷；請用相容模式重載'));
 });
@@ -230,15 +237,148 @@ function placeCraft(place, explore) {
 
 const defaultBriefing = byId('briefing') ? byId('briefing').textContent : '';
 const defaultTitle = byId('title') ? byId('title').textContent : '長洲巡航';
+
+const INTRO_PAGES = [
+  { src: 'intro/01-title.jpg', alt: '郊野學園考察團　出發吧～認識海岸地貌' },
+  { src: 'intro/02-depart.jpg', alt: '地理考察加油站嘅《郊野學園考察團》正式出發' },
+  { src: 'intro/03-late.jpg', alt: '遲大到' },
+  { src: 'intro/04-skill.jpg', alt: '金剛仔特殊技能發動' },
+  { src: 'intro/05-accident.jpg', alt: '可惜中途發生意外，眾人下落不明' },
+  { src: 'intro/06-news.jpg', alt: '飛行服務隊於長洲海岸展開搜救，準備出發' }
+];
+let introStep = 0;
+
+function introVisible() {
+  const node = byId('intro');
+  return !!(node && !node.hidden);
+}
+
+function setIntroStatus(message) {
+  const status = byId('intro-status');
+  if (!status) return;
+  if (message) {
+    status.textContent = message;
+    status.hidden = false;
+  } else {
+    status.textContent = '';
+    status.hidden = true;
+  }
+}
+
+function showIntro(step) {
+  const node = byId('intro');
+  const art = byId('intro-art');
+  if (!node || !art) return;
+  introStep = step;
+  window.__introPendingStart = false;
+  const page = INTRO_PAGES[step];
+  art.src = page.src + '?v=' + GAME_BUILD;
+  art.alt = page.alt;
+  node.hidden = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('intro-start')) byId('intro-start').hidden = step !== 0;
+  if (byId('intro-next')) byId('intro-next').hidden = step === 0;
+  // Back exists on story pages 3–6 only (steps 2–5); hidden on page 2 (step 1).
+  if (byId('intro-back')) byId('intro-back').hidden = step < 2;
+  setIntroStatus('');
+}
+
+function isCoarsePointer() {
+  try { return !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); }
+  catch (error) { return (navigator.maxTouchPoints || 0) > 0; }
+}
+
+function startIntroStory() {
+  if (isCoarsePointer() && typeof window.__enterFullscreen === 'function') {
+    window.__enterFullscreen();
+  }
+  showIntro(1);
+}
+
+function showInitFailureOverlay() {
+  if (byId('intro')) byId('intro').hidden = true;
+  if (byId('overlay')) byId('overlay').hidden = false;
+  if (byId('startup-status')) byId('startup-status').hidden = false;
+  if (byId('startup-retry')) byId('startup-retry').hidden = false;
+  if (byId('start-help')) byId('start-help').hidden = true;
+  if (byId('explore')) byId('explore').hidden = true;
+  if (byId('title-home')) byId('title-home').hidden = false;
+  if (byId('title')) byId('title').textContent = '未能開始飛行';
+  setIntroStatus('');
+}
+
+function tryStartMissionFromIntro() {
+  if (start.textContent === '未能開始飛行') {
+    window.__introPendingStart = false;
+    showInitFailureOverlay();
+    return;
+  }
+  if (start.dataset.unlocked === '1') {
+    window.__introPendingStart = false;
+    startFlight(false);
+    return;
+  }
+  window.__introPendingStart = true;
+  setIntroStatus('載入中…');
+}
+
+function introNext() {
+  if (!introVisible() || introStep === 0) return;
+  if (introStep < INTRO_PAGES.length - 1) showIntro(introStep + 1);
+  else tryStartMissionFromIntro();
+}
+
+function introBack() {
+  // No wrap past story page 2 (step 1).
+  if (!introVisible() || introStep <= 1) return;
+  showIntro(introStep - 1);
+}
+
+function handleIntroKey(event) {
+  if (!introVisible() || event.repeat) return false;
+  if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight' || event.code === 'ArrowLeft') {
+    event.preventDefault();
+  }
+  if (introStep === 0 && (event.code === 'Enter' || event.code === 'Space')) {
+    startIntroStory();
+    return true;
+  }
+  if (introStep > 0 && (event.code === 'Enter' || event.code === 'ArrowRight')) {
+    introNext();
+    return true;
+  }
+  if (event.code === 'ArrowLeft') {
+    introBack();
+    return true;
+  }
+  return introVisible();
+}
+
+function bindIntroStory() {
+  INTRO_PAGES.forEach(page => {
+    const image = new Image();
+    image.src = page.src + '?v=' + GAME_BUILD;
+  });
+  const startBtn = byId('intro-start');
+  const nextBtn = byId('intro-next');
+  const backBtn = byId('intro-back');
+  if (startBtn) startBtn.addEventListener('click', startIntroStory);
+  if (nextBtn) nextBtn.addEventListener('click', introNext);
+  if (backBtn) backBtn.addEventListener('click', introBack);
+  showIntro(0);
+}
+
 function goHome() {
   clearFlightInput();
   Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false });
-  byId('overlay').hidden = false;
+  window.__introPendingStart = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('title')) byId('title').textContent = defaultTitle;
   if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
   if (byId('mission-note')) byId('mission-note').hidden = true;
   if (byId('marker')) byId('marker').hidden = true;
+  showIntro(0);
 }
 
 function startFlight(explore = false) {
@@ -246,9 +386,11 @@ function startFlight(explore = false) {
   const free = explore || !place.mission;
   // Mission starts at station 0 (東灣). Takeoff is offset from that gate so it
   // is not auto-completed. Explore is free flight inside Cheung Chau.
+  window.__introPendingStart = false;
   Object.assign(run, { mode: 'flying', next: 0, time: 0, camera: false, explore: free });
   placeCraft(place, free);
   clearFlightInput();
+  if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = true;
   if (window.__loadHeli) window.__loadHeli();
   start.blur();
@@ -260,12 +402,19 @@ function startFlight(explore = false) {
 function finish(success) {
   run.mode = 'ended';
   clearFlightInput();
+  if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = false;
   byId('title').textContent = success ? '巡航完成' : '巡航中斷';
   byId('briefing').textContent = success
     ? '已完成東灣、南氹、東灣仔、觀音灣（饅頭石）巡查。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
     : '電量耗盡。你可以由東灣再試一次。';
   start.textContent = '再飛一次';
+  start.disabled = start.dataset.unlocked !== '1';
+  if (byId('startup-status')) byId('startup-status').hidden = true;
+  if (byId('startup-retry')) byId('startup-retry').hidden = true;
+  if (byId('start-help')) byId('start-help').hidden = true;
+  if (byId('explore')) byId('explore').hidden = true;
+  if (byId('title-home')) byId('title-home').hidden = false;
   start.focus();
 }
 
@@ -304,11 +453,14 @@ function toggleCamera() {
 }
 
 start.addEventListener('click', () => startFlight(false));
-byId('explore').addEventListener('click', () => startFlight(true));
+if (byId('explore')) byId('explore').addEventListener('click', () => startFlight(true));
 if (byId('home')) byId('home').addEventListener('click', goHome);
+if (byId('title-home')) byId('title-home').addEventListener('click', goHome);
+bindIntroStory();
 const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'ShiftRight']);
 window.addEventListener('keydown', event => {
   if (event.target.closest('select,input,textarea,[contenteditable]')) return;
+  if (handleIntroKey(event)) return;
   if (event.code === 'KeyR' && run.mode !== 'ready' && !event.repeat && !start.disabled) startFlight(run.explore);
   if (run.mode !== 'flying') return;
   if (event.code === 'KeyC' && !event.repeat) toggleCamera();
