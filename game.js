@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1650';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1700';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -243,7 +243,7 @@ function placeCraft(place, explore) {
 
 
 const defaultBriefing = byId('briefing') ? byId('briefing').textContent : '';
-const defaultTitle = byId('title') ? byId('title').textContent : '長洲直升機巡航';
+const defaultTitle = byId('title') ? byId('title').textContent : '郊野學園考察團';
 
 const INTRO_PAGES = [
   { src: 'intro/01-title.jpg', alt: '郊野學園考察團　出發吧～認識海岸地貌' },
