@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1130';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1215';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -124,12 +124,7 @@ const keys = new Set();
 const pointers = new Map();
 const buttons = [...document.querySelectorAll('[data-key]')];
 const active = key => keys.has(key) || [...pointers.values()].includes(key);
-const items = route.map(point => {
-  const li = document.createElement('li');
-  li.textContent = point.name;
-  byId('route').append(li);
-  return li;
-});
+const items = [];
 function populatePlaces() {
   // School edition has a single Cheung Chau start; the place selector is omitted.
 }
@@ -232,6 +227,20 @@ function placeCraft(place, explore) {
   });
 }
 
+
+const defaultBriefing = byId('briefing') ? byId('briefing').textContent : '';
+const defaultTitle = byId('title') ? byId('title').textContent : '長洲巡航';
+function goHome() {
+  clearFlightInput();
+  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false });
+  byId('overlay').hidden = false;
+  if (byId('title')) byId('title').textContent = defaultTitle;
+  if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
+  if (start.dataset.unlocked === '1') start.textContent = '開始任務';
+  if (byId('mission-note')) byId('mission-note').hidden = true;
+  if (byId('marker')) byId('marker').hidden = true;
+}
+
 function startFlight(explore = false) {
   const place = selectedPlace();
   const free = explore || !place.mission;
@@ -241,7 +250,6 @@ function startFlight(explore = false) {
   placeCraft(place, free);
   clearFlightInput();
   byId('overlay').hidden = true;
-  byId('camera').disabled = false;
   if (window.__loadHeli) window.__loadHeli();
   start.blur();
   if (byId('mission-note')) {
@@ -253,7 +261,6 @@ function finish(success) {
   run.mode = 'ended';
   clearFlightInput();
   byId('overlay').hidden = false;
-  byId('camera').disabled = true;
   byId('title').textContent = success ? '巡航完成' : '巡航中斷';
   byId('briefing').textContent = success
     ? '已完成東灣、南氹、東灣仔、觀音灣（饅頭石）巡查。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
@@ -298,10 +305,7 @@ function toggleCamera() {
 
 start.addEventListener('click', () => startFlight(false));
 byId('explore').addEventListener('click', () => startFlight(true));
-byId('camera').addEventListener('click', event => {
-  toggleCamera();
-  if (event.detail > 0) event.currentTarget.blur();
-});
+if (byId('home')) byId('home').addEventListener('click', goHome);
 const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'ShiftRight']);
 window.addEventListener('keydown', event => {
   if (event.target.closest('select,input,textarea,[contenteditable]')) return;
@@ -1038,14 +1042,14 @@ function createObjects(seconds) {
 }
 
 const chart = document.createElement('canvas');
-chart.width = 180;
-chart.height = 160;
+chart.width = 256;
+chart.height = 256;
 const chartContext = chart.getContext('2d');
 const chartImages = [];
 const chartPoint = (x,z) => HK.minimapProjection(chart.width, chart.height).worldToPix(x,z);
 function paintChart() {
   chartContext.fillStyle = '#204d5d';
-  chartContext.fillRect(0,0,180,160);
+  chartContext.fillRect(0,0,chart.width,chart.height);
   const frame = HK.minimapProjection(chart.width, chart.height);
   const x0 = frame.x0, z0 = frame.z0, mpp = frame.metersPerPixel;
   chartImages.forEach((image,unit) => {
@@ -1125,7 +1129,7 @@ function drawHud(camera, seconds) {
   const target = missionTarget();
   const marker = byId('marker');
   const flying = run.mode === 'flying';
-  marker.hidden = !flying || run.explore || run.next===0;
+  marker.hidden = !flying || run.explore;
   byId('reticle').hidden = !flying || !run.camera;
   if (!marker.hidden) {
     const relative = [target.x-camera.eye[0],target.y-camera.eye[1],target.z-camera.eye[2]];
@@ -1134,9 +1138,9 @@ function drawHud(camera, seconds) {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     const x = depth>1 ? width*(.5+.5*camera.fx*side/depth) : side<0 ? 0 : width;
     const y = depth>1 ? height*(.5-.5*camera.fy*dot(relative,camera.up)/depth) : height*.5;
-    marker.style.left = clamp(x,72,width-72)+'px';
-    marker.style.top = clamp(y,Math.min(195,height*.45),height*.69)+'px';
-    const hint = depth<=1 || x<72 ? (side<0?'‹ ':'› ') : x>width-72 ? '› ' : '';
+    marker.style.left = clamp(x, 90, width-90)+'px';
+    marker.style.top = clamp(y, 80, height-48)+'px';
+    const hint = depth<=1 || x<90 ? (side<0?'‹ ':'› ') : x>width-90 ? '› ' : '';
     marker.textContent = hint + target.name + ' · ' + Math.round(distance(craft,target)) + ' m';
   }
   if (seconds - hudTime < .12) return;
@@ -1157,12 +1161,15 @@ function drawHud(camera, seconds) {
   byId('height').textContent = Math.round(craft.y);
   if (byId('agl')) byId('agl').textContent = Math.max(0, Math.round(altitudeAgl(craft.x, craft.y, craft.z)));
   byId('speed').textContent = Math.round(Math.hypot(craft.vx,craft.vz)*3.6);
-  byId('heading').textContent = String((Math.round(craft.yaw*180/Math.PI)%360+360)%360).padStart(3,'0');
+  const heading = (Math.round(craft.yaw*180/Math.PI)%360+360)%360;
+  byId('heading').textContent = String(heading).padStart(3,'0');
   byId('battery').textContent = run.explore ? '—' : Math.max(0,100-Math.floor(run.time / MISSION_TIME_LIMIT * 100));
   items.forEach((li,index) => {
     li.classList.toggle('current',index===run.next);
     li.classList.toggle('done',index<run.next);
   });
+  const needle = byId('compass-needle');
+  if (needle) needle.style.transform = 'rotate(' + heading + 'deg)';
   drawMap();
 }
 

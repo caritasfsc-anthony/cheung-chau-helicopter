@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store">
 <title>長洲直升機巡航｜學校版</title>
-<link rel="stylesheet" href="style.css?v=s1-20261123-1130">
+<link rel="stylesheet" href="style.css?v=s1-20261123-1215">
 <script>
-window.GAME_BUILD = 's1-20261123-1130';
+window.GAME_BUILD = 's1-20261123-1215';
 window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
 // ES5 bootstrap remains executable even if a later game script fails to parse.
@@ -94,57 +94,62 @@ window.addEventListener('unhandledrejection', function(ev) {
   });
 });
 </script>
-<script defer src="hk-map.js?v=s1-20261123-1130" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
-<script defer src="game.js?v=s1-20261123-1130"></script>
+<script defer src="hk-map.js?v=s1-20261123-1215" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1215"></script>
 </head>
 <body>
 <main>
+<div id="stage">
 <canvas id="world" aria-label="長洲直升機三維飛行畫面"></canvas>
-<header>
-  <div class="brand">長洲直升機巡航 <small>CHEUNG CHAU SCHOOL EDITION</small></div>
-  <div class="header-tools">
-    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1130</div>
+<div id="build-id" title="版本識別" hidden>版本 s1-20261123-1215</div>
+<div class="top-bar">
+  <button type="button" id="home" class="icon-btn flight-hud" aria-label="主頁" title="主頁">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11.2 12 4.4l7.5 6.8v8.4a1.2 1.2 0 0 1-1.2 1.2h-4.3v-5.3h-4v5.3H5.7a1.2 1.2 0 0 1-1.2-1.2z"/></svg>
+  </button>
+  <section class="telemetry flight-hud" aria-label="飛行儀表">
+    <div><small>海拔</small><strong><span id="height">0</span> m</strong></div>
+    <div><small>地速</small><strong><span id="speed">0</span> km/h</strong></div>
+    <div><small>航向</small><strong><span id="heading">000</span> °</strong></div>
+    <div><small>電量</small><strong><span id="battery">100</span> %</strong></div>
+  </section>
+  <div id="compass" class="flight-hud" aria-label="指南針">
+    <svg class="compass-ring" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="48 18" stroke-dashoffset="24"/>
+    </svg>
+    <span class="compass-lab n">N</span>
+    <span class="compass-lab e">E</span>
+    <span class="compass-lab s">S</span>
+    <span class="compass-lab w">W</span>
+    <div id="compass-needle" aria-hidden="true">
+      <svg viewBox="0 0 100 100"><path d="M50 14 72 82 50 68 28 82z"/></svg>
+    </div>
   </div>
-</header>
-<div class="corner-tools">
-  <button id="camera" type="button" disabled>切換視角 <kbd>C</kbd></button>
-  <button type="button" id="fullscreen" class="fs-btn" aria-label="全屏幕" aria-pressed="false" title="全屏幕">
+  <button type="button" id="fullscreen" class="icon-btn fs-btn" aria-label="全屏幕" aria-pressed="false" title="全屏幕">
     <svg class="fs-enter" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M4 16v4h4M20 16v4h-4"/></svg>
     <svg class="fs-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h5V4M15 4v5h5M4 15h5v5M20 15h-5v5"/></svg>
   </button>
 </div>
-<section class="mission"><small>長洲巡航</small><h1 id="target">東灣</h1><p id="guide" aria-live="polite">準備起飛</p><p id="mission-note" hidden>自由飛行中。巡航任務只在開始任務後進行。</p><ol id="route"></ol></section>
+<section class="mission flight-hud"><small>長洲巡航</small><h1 id="target">東灣</h1><p id="guide" aria-live="polite">準備起飛</p><p id="mission-note" hidden>自由飛行中。巡航任務只在開始任務後進行。</p></section>
 <div id="marker" hidden></div>
 <div id="reticle" hidden>＋</div>
-<div class="map-stack">
-<aside class="map"><canvas id="map" width="180" height="160" aria-label="航線小地圖"></canvas><small id="map-status">北 ↑　載入長洲地圖…</small>
-    <label class="height-mode-label">高程 <select id="height-mode" title="用來對比全球圖磚與本地長洲高程">
-      <option value="auto">自動（全球高程＋航拍）</option>
-      <option value="tiles">只用全球圖磚</option>
-      <option value="baked">只用本地長洲高程／地圖</option>
-    </select></label></aside>
-<div id="map-credit">
-  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1130" width="120" height="14" alt="地政總署">
-  <p>Aerial Photograph from Lands Department／航拍影像 © 地政總署</p>
-</div>
-</div>
-<section class="telemetry" aria-label="飛行儀表">
-<div><small>海拔</small><strong id="height">0</strong> m</div><div><small>離地</small><strong id="agl">100</strong> m</div><div><small>地速</small><strong id="speed">0</strong> km/h</div><div><small>航向</small><strong id="heading">000</strong> °</div><div><small>電量</small><strong id="battery">100</strong> %</div>
-</section>
-<div class="keyboard">WASD 平移　 Q / E 轉向　 Space / Shift 升降　 R 重飛</div>
-<div class="touch" aria-label="觸控飛行">
+<aside class="map flight-hud"><canvas id="map" width="256" height="256" aria-label="航線小地圖"></canvas></aside>
+<div class="touch flight-hud" aria-label="觸控飛行">
 <div class="pad dpad move-pad" aria-label="平移">
-<button type="button" data-key="KeyW" aria-label="前移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 20 18H4z"/></svg></button>
-<button type="button" data-key="KeyA" aria-label="左移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 18 4v16z"/></svg></button>
-<button type="button" data-key="KeyS" aria-label="後移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 4 6h16z"/></svg></button>
-<button type="button" data-key="KeyD" aria-label="右移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12 6 4v16z"/></svg></button>
+<button type="button" data-key="KeyW" aria-label="前移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 19 17H5z"/></svg></button>
+<button type="button" data-key="KeyA" aria-label="左移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12 17 5v14z"/></svg></button>
+<button type="button" data-key="KeyS" aria-label="後移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19 5 7h14z"/></svg></button>
+<button type="button" data-key="KeyD" aria-label="右移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12 7 5v14z"/></svg></button>
 </div>
 <div class="pad dpad lift-pad" aria-label="升降轉向">
-<button type="button" data-key="Space" aria-label="升高"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 11h-4v10H9V11H5z"/></svg></button>
-<button type="button" data-key="KeyQ" aria-label="左轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6H5v4"/><path d="M19.5 15.5a7 7 0 1 0-13.2-3.4"/></svg></button>
-<button type="button" data-key="ShiftLeft" aria-label="下降"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 5 13h4V3h6v10h4z"/></svg></button>
-<button type="button" data-key="KeyE" aria-label="右轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6h4v4"/><path d="M4.5 15.5a7 7 0 1 1 13.2-3.4"/></svg></button>
+<button type="button" data-key="Space" aria-label="升高"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 6 12h3.8v8h4.4v-8H18z"/></svg></button>
+<button type="button" data-key="KeyQ" aria-label="左轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 6.2H4.4V10"/><path d="M19.2 15.2A7 7 0 1 0 6.6 9.4"/></svg></button>
+<button type="button" data-key="ShiftLeft" aria-label="下降"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 18 12h-3.8V4H9.8v8H6z"/></svg></button>
+<button type="button" data-key="KeyE" aria-label="右轉" class="turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.8 6.2h3.8V10"/><path d="M4.8 15.2A7 7 0 1 1 17.4 9.4"/></svg></button>
 </div>
+</div>
+<div id="map-credit" class="flight-hud">
+  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1215" width="120" height="14" alt="地政總署">
+  <p>Aerial Photograph from Lands Department／航拍影像 © 地政總署</p>
 </div>
 <section id="stream-notice" hidden aria-label="地圖載入狀態">
 <span id="stream-message" role="status" aria-live="polite"></span>
@@ -159,7 +164,7 @@ window.addEventListener('unhandledrejection', function(ev) {
 <div class="brief-actions">
 <button id="start" disabled>載入畫面…</button>
 <button id="explore" class="secondary" disabled>自由飛行</button>
-<a id="startup-retry" href="?v=s1-20261123-1130&amp;quality=low">手機相容模式重載</a>
+<a id="startup-retry" href="?v=s1-20261123-1215&amp;quality=low">手機相容模式重載</a>
 </div>
 <div class="brief-content">
 <p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 100 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
@@ -168,6 +173,7 @@ window.addEventListener('unhandledrejection', function(ev) {
 </div>
 <p class="sources-brief">來源：航拍影像 © 地政總署　高程 <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen</a>／<a href="https://data.gov.hk/en-data/dataset/hk-landsd-openmap-5m-grid-dtm">地政 5 米 DTM</a>　模型 <a href="https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4">assetfactory（Sketchfab）</a>　地點 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a></p>
 </section>
+</div>
 </div>
 <div id="rotate-prompt" hidden role="dialog" aria-live="assertive">
   <div class="rotate-card">
