@@ -52,8 +52,15 @@ kbd{margin-left:.4em;color:#b7d8d0}
 .hint-box .hint-label,.hint-box .hint-text{margin:0;color:#111;font-weight:900;letter-spacing:0;line-height:1.25}
 .hint-box .hint-label{font-size:2.15cqh}
 .hint-box .hint-text{font-size:2.15cqh}
-.hint-box.is-near::before{content:"";position:absolute;inset:-0.5cqh;border-radius:inherit;z-index:-1;background:conic-gradient(#ff3b6b,#ffd400,#3dff8a,#3db7ff,#b44dff,#ff3b6b);animation:hint-iridescent 2s linear infinite}
-@keyframes hint-iridescent{to{transform:rotate(360deg)}}
+/* Animate the COLOURS around a fixed pill, never rotate the pill silhouette.
+   The cut-out keeps both rainbow layers outside the solid yellow surface. */
+@property --hint-angle{syntax:"<angle>";inherits:false;initial-value:0deg}
+.hint-box.is-near::before,.hint-box.is-near::after{content:"";position:absolute;inset:-1.1cqh;padding:1.1cqh;border-radius:999px;pointer-events:none;background:conic-gradient(from var(--hint-angle,0deg),#ff2697,#ffdc25,#3aff85,#17dbff,#9750ff,#ff2697);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude}
+.hint-box.is-near{box-shadow:0 0 2.4cqh .45cqh #ff37b955,0 0 3.2cqh .65cqh #27dfff44}
+.hint-box.is-near::before{z-index:-1;animation:hint-iridescent 1.8s linear infinite;box-shadow:0 0 1.2cqh #ee46ff88}
+.hint-box.is-near::after{z-index:-2;opacity:.85;filter:blur(1cqh);animation:hint-iridescent 2s linear infinite reverse}
+@keyframes hint-iridescent{to{--hint-angle:360deg}}
+/* Unregistered-custom-property browsers still get a saturated static border. */
 
 .map{top:25%;right:2.6%;width:19.7%;aspect-ratio:334/316;padding:0;overflow:hidden;background:#0b2530;border:0.35cqw solid #fff;border-radius:1.7cqw;z-index:6;text-align:center;box-shadow:0 8px 24px #0006}
 .map canvas{display:block;width:100%;height:100%}
@@ -193,17 +200,26 @@ body:has(#intro:not([hidden])) #fullscreen{margin-left:auto}
 @media(hover:hover){#intro button.intro-hit:hover::after{opacity:.32}}
 @keyframes painted-button-pulse{0%{opacity:.9}100%{opacity:0}}
 #intro[aria-busy="true"] .intro-hit{pointer-events:none}
-/* Snapshot of the outgoing artwork crossfades over the next page or flight.
-   No whole-slide movement on press; 220 ms lock prevents skipped pages. */
-#scene-fade{position:absolute;inset:0;z-index:26;pointer-events:none;background:#102b36}
-#scene-fade img{display:block;width:100%;height:100%;object-fit:fill}
-#scene-fade.is-fading{animation:scene-crossfade 220ms ease-out both}
-@keyframes scene-crossfade{from{opacity:1}to{opacity:0}}
-.overlay:not([hidden]) .brief{animation:results-arrive 200ms ease-out both}
-@keyframes results-arrive{from{opacity:0;transform:translateY(.6cqh)}to{opacity:1;transform:none}}
+/* All scene cuts share a deliberate 480 ms lock, including flight -> found.
+   An outgoing snapshot lifts gently; a warm comic-card wash joins each cut.
+   The gradient gives flight cuts the same presence without capturing WebGL. */
+#scene-fade{position:absolute;inset:0;z-index:26;pointer-events:none;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#526264,#173642 75%)}
+#scene-fade img{display:block;width:100%;height:100%;object-fit:fill;transform-origin:50% 50%}
+#scene-fade::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,#fffbed 0%,#ffe7a2 45%,#ffd05788 100%);opacity:0}
+#scene-fade.is-fading{animation:scene-crossfade 480ms cubic-bezier(.25,.1,.25,1) both}
+#scene-fade.is-fading img{animation:scene-snapshot-lift 480ms ease-out both}
+#scene-fade.is-fading::after{animation:scene-warm-wash 480ms ease-out both}
+@keyframes scene-crossfade{0%,12%{opacity:1}100%{opacity:0}}
+@keyframes scene-snapshot-lift{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.035);filter:brightness(1.14)}}
+@keyframes scene-warm-wash{0%,100%{opacity:0}38%{opacity:.48}}
+.overlay:not([hidden]) .brief{animation:results-arrive 360ms cubic-bezier(.2,.7,.25,1) both}
+@keyframes results-arrive{from{opacity:0;transform:translateY(1.4cqh) scale(.97)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){
   .icon-btn,.pad.dpad button,.brief button,#map-retry,#intro button.intro-hit::after{transition:none!important}
-  #scene-fade.is-fading,.overlay:not([hidden]) .brief,#intro button.intro-hit.feedback-pulse::after,.hint-box.is-near::before{animation:none!important}
+  #scene-fade.is-fading,#scene-fade.is-fading img,#scene-fade.is-fading::after,.overlay:not([hidden]) .brief,#intro button.intro-hit.feedback-pulse::after,.hint-box.is-near::before,.hint-box.is-near::after{animation:none!important}
+  #scene-fade.is-fading img{transform:none;filter:none}
+  #scene-fade::after{opacity:0}
+  .hint-box.is-near::before,.hint-box.is-near::after{--hint-angle:35deg}
   .icon-btn:active,.brief button:active,#map-retry:active,.pad.dpad button.pressed,.pad.dpad button:active{transform:none}
 }
 
