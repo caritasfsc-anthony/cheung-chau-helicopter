@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1600';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1650';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -257,26 +257,40 @@ const SECTIONS = [
   {
     search: 'intro/s1-search.jpg', found: 'intro/s1-found.jpg',
     searchAlt: '尋找莫博士　出發吧～認識海岸地貌', foundAlt: '已找到莫博士',
-    character: '莫博士', hint: '與海洋相連的狹長地帶'
+    character: '莫博士', hintWhere: '島的東邊', hint: '與海洋相連的狹長地帶',
+    bridge: [
+      { src: 'intro/s1-bridge-1.jpg', alt: '莫博士特殊技能發動　戴回眼鏡嘅莫博士希望幫忙搜救團員，發動特殊技能「真相放大」' },
+      { src: 'intro/s1-bridge-2.jpg', alt: '「真相放大」睇到金剛仔趴喺巨大岩石上，大家估下金剛仔所在嘅位置屬於邊種海岸地貌？' }
+    ]
   },
   {
     search: 'intro/s2-search.jpg', found: 'intro/s2-found.jpg',
     searchAlt: '尋找金剛仔　出發吧～認識海岸地貌', foundAlt: '已找到莫博士同金剛仔',
-    character: '金剛仔', hint: '沿海巨大岩石附近'
+    character: '金剛仔', hintWhere: '島的南邊', hint: '沿海巨大岩石附近',
+    bridge: [
+      { src: 'intro/s2-bridge-1.jpg', alt: '金剛仔提到喺海崖頂睇到北面遠處有強光閃爌，強光嚟自一條貫穿岩壁嘅狹窄縫隙。' }
+    ]
   },
   {
     search: 'intro/s3-search.jpg', found: 'intro/s3-found.jpg',
     searchAlt: '尋找小螢　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔同小螢',
-    character: '小螢', hint: '一條貫穿岩壁嘅狹窄縫隙'
+    character: '小螢', hintWhere: '島的東北邊', hint: '一條貫穿岩壁嘅狹窄縫隙',
+    bridge: [
+      { src: 'intro/s3-bridge-1.jpg', alt: '莫博士再次使用「真相放大」搜尋最後一位隊員——斑班長' },
+      { src: 'intro/s3-bridge-2.jpg', alt: '但今次連儀器都失效、畫面一片漆黑！究竟斑班長遇到咩危險呢？金剛仔：「但今次咩都睇唔到！唔通佢……去咖賣咸鴨蛋？」' }
+    ]
   },
   {
     search: 'intro/s4-search.jpg', found: 'intro/s4-found.jpg',
     searchAlt: '尋找斑班長　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔、小螢同斑班長',
-    character: '斑班長', hint: '海面上嘅獨立岩柱'
+    character: '斑班長', hintWhere: '島的東南邊', hint: '海面上嘅獨立岩柱',
+    bridge: []
   }
 ];
 let introStep = 0;
 let introPhase = 'story';
+let bridgeStep = 0;
+let endingActive = false;
 let introTransitioning = false;
 let introTransitionTimer = null;
 const INTRO_FADE_MS = 480;
@@ -387,6 +401,7 @@ function showSearchPage(index) {
     byId('intro-go').setAttribute('aria-label', "LET'S GO，開始尋找" + section.character);
   }
   setIntroStatus('');
+  if (index >= LAST_ROUTE_INDEX) preloadEnding();
 }
 
 function showFoundPage(index) {
@@ -405,7 +420,33 @@ function showFoundPage(index) {
   if (byId('intro-back')) byId('intro-back').hidden = true;
   if (byId('intro-next')) {
     byId('intro-next').hidden = false;
-    byId('intro-next').setAttribute('aria-label', index >= LAST_ROUTE_INDEX ? '查看結果' : '下一頁');
+    byId('intro-next').setAttribute('aria-label', index >= LAST_ROUTE_INDEX ? '播放結尾片' : '下一頁');
+  }
+  setIntroStatus('');
+  if (index >= LAST_ROUTE_INDEX) preloadEnding();
+}
+
+function showBridgePage(sectionIndex, pageIndex) {
+  const node = byId('intro');
+  const art = byId('intro-art');
+  const section = SECTIONS[sectionIndex];
+  const pages = section && section.bridge ? section.bridge : [];
+  const page = pages[pageIndex];
+  if (!node || !art || !page) return;
+  introPhase = 'bridge';
+  bridgeStep = pageIndex;
+  window.__introPendingStart = false;
+  art.src = page.src + '?v=' + GAME_BUILD;
+  art.alt = page.alt;
+  node.hidden = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('ending')) byId('ending').hidden = true;
+  if (byId('intro-start')) byId('intro-start').hidden = true;
+  if (byId('intro-go')) byId('intro-go').hidden = true;
+  if (byId('intro-back')) byId('intro-back').hidden = false;
+  if (byId('intro-next')) {
+    byId('intro-next').hidden = false;
+    byId('intro-next').setAttribute('aria-label', '下一頁');
   }
   setIntroStatus('');
 }
@@ -466,6 +507,21 @@ function introNext() {
     advanceFromFound();
     return;
   }
+  if (introPhase === 'bridge') {
+    pulseIntroButton('intro-next');
+    const pages = (SECTIONS[run.next] && SECTIONS[run.next].bridge) || [];
+    if (bridgeStep < pages.length - 1) {
+      transitionIntroScene(() => showBridgePage(run.next, bridgeStep + 1));
+      return;
+    }
+    const next = run.next + 1;
+    transitionIntroScene(() => {
+      run.next = next;
+      run.mode = 'section';
+      showSearchPage(next);
+    });
+    return;
+  }
   if (introPhase !== 'story' || introStep === 0) return;
   pulseIntroButton('intro-next');
   if (introStep < INTRO_PAGES.length - 1) transitionIntroScene(() => showIntro(introStep + 1));
@@ -473,13 +529,28 @@ function introNext() {
 }
 
 function introBack() {
+  if (introTransitioning || !introVisible()) return;
+  if (introPhase === 'bridge') {
+    pulseIntroButton('intro-back');
+    if (bridgeStep > 0) transitionIntroScene(() => showBridgePage(run.next, bridgeStep - 1));
+    else transitionIntroScene(() => showFoundPage(run.next));
+    return;
+  }
   // No wrap past story page 2 (step 1). Back is not drawn on section or found pages.
-  if (introTransitioning || !introVisible() || introPhase !== 'story' || introStep <= 1) return;
+  if (introPhase !== 'story' || introStep <= 1) return;
   pulseIntroButton('intro-back');
   transitionIntroScene(() => showIntro(introStep - 1));
 }
 
 function handleIntroKey(event) {
+  if (endingVisible()) {
+    if (event.repeat) { event.preventDefault(); return true; }
+    if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight') {
+      event.preventDefault();
+      skipEnding();
+    }
+    return true;
+  }
   if (!introVisible()) return false;
   if (event.repeat || introTransitioning) { event.preventDefault(); return true; }
   if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight' || event.code === 'ArrowLeft') {
@@ -491,6 +562,11 @@ function handleIntroKey(event) {
   }
   if (introPhase === 'found') {
     if (event.code === 'Enter' || event.code === 'ArrowRight') introNext();
+    return true;
+  }
+  if (introPhase === 'bridge') {
+    if (event.code === 'Enter' || event.code === 'ArrowRight') introNext();
+    if (event.code === 'ArrowLeft') introBack();
     return true;
   }
   if (introStep === 0 && (event.code === 'Enter' || event.code === 'Space')) {
@@ -518,6 +594,10 @@ function bindIntroStory() {
       const image = new Image();
       image.src = src + '?v=' + GAME_BUILD;
     });
+    (section.bridge || []).forEach(page => {
+      const image = new Image();
+      image.src = page.src + '?v=' + GAME_BUILD;
+    });
   });
   const startBtn = byId('intro-start');
   const nextBtn = byId('intro-next');
@@ -532,11 +612,130 @@ function bindIntroStory() {
       if (!introTransitioning) pulseIntroButton(node.id);
     });
   });
+  bindEnding();
   showIntro(0);
 }
 
+function advanceFromFound() {
+  if (introTransitioning || introPhase !== 'found') return;
+  if (run.next >= LAST_ROUTE_INDEX) {
+    startEndingFromFound();
+    return;
+  }
+  const pages = (SECTIONS[run.next] && SECTIONS[run.next].bridge) || [];
+  if (pages.length) {
+    transitionIntroScene(() => showBridgePage(run.next, 0));
+    return;
+  }
+  const next = run.next + 1;
+  transitionIntroScene(() => {
+    run.next = next;
+    run.mode = 'section';
+    showSearchPage(next);
+  });
+}
+
+function endingVisible() {
+  const node = byId('ending');
+  return !!(node && !node.hidden);
+}
+
+function preloadEnding() {
+  const video = byId('ending-video');
+  if (!video) return;
+  if (!video.getAttribute('src') && !video.src) video.src = 'media/ending.mp4?v=' + GAME_BUILD;
+  video.preload = 'auto';
+  try { if (typeof video.load === 'function') video.load(); } catch (error) {}
+}
+
+function updateEndingProgress() {
+  const video = byId('ending-video');
+  const bar = byId('ending-progress') && byId('ending-progress').firstElementChild;
+  if (!video || !bar || !video.duration) return;
+  bar.style.width = Math.max(0, Math.min(100, (video.currentTime / video.duration) * 100)) + '%';
+}
+
+function stopEnding() {
+  endingActive = false;
+  const video = byId('ending-video');
+  if (video) {
+    try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
+    try { video.currentTime = 0; } catch (error) {}
+  }
+  if (byId('ending')) byId('ending').hidden = true;
+  if (byId('ending-play')) byId('ending-play').hidden = true;
+  const bar = byId('ending-progress') && byId('ending-progress').firstElementChild;
+  if (bar) bar.style.width = '0%';
+}
+
+function completeEnding() {
+  if (!endingActive) return;
+  endingActive = false;
+  stopEnding();
+  if (typeof finish === 'function') finish(true);
+}
+
+function skipEnding() {
+  completeEnding();
+}
+
+function tryPlayEnding(fromGesture) {
+  const video = byId('ending-video');
+  const playBtn = byId('ending-play');
+  if (!video || typeof video.play !== 'function') {
+    if (playBtn) playBtn.hidden = false;
+    return;
+  }
+  const result = video.play();
+  const failed = () => { if (playBtn) playBtn.hidden = false; };
+  if (result && typeof result.then === 'function') result.then(() => {
+    if (playBtn) playBtn.hidden = true;
+  }, failed);
+  else if (video.paused) failed();
+}
+
+function showEndingOverlay() {
+  endingActive = true;
+  run.mode = 'ending';
+  clearFlightInput();
+  if (byId('intro')) byId('intro').hidden = true;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  const node = byId('ending');
+  if (node) node.hidden = false;
+}
+
+function startEndingFromFound() {
+  if (introPhase !== 'found') return;
+  preloadEnding();
+  endingActive = true;
+  // Start playback in this user-gesture turn, before the 480 ms visual cut.
+  // Waiting for transitionIntroScene would cause browsers to block unmuted play().
+  tryPlayEnding(true);
+  const reveal = () => showEndingOverlay();
+  if (typeof transitionIntroScene === 'function') {
+    const started = transitionIntroScene(reveal);
+    if (!started) reveal();
+  } else reveal();
+}
+
+function bindEnding() {
+  const video = byId('ending-video');
+  const skip = byId('ending-skip');
+  const playBtn = byId('ending-play');
+  if (skip) skip.addEventListener('click', skipEnding);
+  if (playBtn) playBtn.addEventListener('click', () => tryPlayEnding(true));
+  if (video) {
+    video.addEventListener('ended', completeEnding);
+    video.addEventListener('timeupdate', updateEndingProgress);
+    video.loop = false;
+  }
+}
+
 function goHome() {
-  if (introTransitioning) return;
+  const fromEnding = endingVisible();
+  stopEnding();
+  if (introTransitioning && !fromEnding) return;
+  if (introTransitioning) introTransitioning = false;
   clearFlightInput();
   Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false });
   window.__introPendingStart = false;
@@ -552,6 +751,7 @@ function goHome() {
 function hideFlightOverlays() {
   if (byId('intro')) byId('intro').hidden = true;
   if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('ending')) byId('ending').hidden = true;
 }
 
 function beginSectionFlight() {
@@ -598,12 +798,14 @@ function retryMission() {
   if (byId('marker')) byId('marker').hidden = true;
   if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
+  stopEnding();
   transitionIntroScene(() => showSearchPage(0));
 }
 
 function finish(success) {
   run.mode = 'ended';
   clearFlightInput();
+  stopEnding();
   if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = false;
   byId('title').textContent = success ? '考察完成' : '考察中斷';
@@ -618,20 +820,6 @@ function finish(success) {
   if (byId('explore')) byId('explore').hidden = true;
   if (byId('title-home')) byId('title-home').hidden = false;
   start.focus();
-}
-
-function advanceFromFound() {
-  if (introTransitioning || introPhase !== 'found') return;
-  if (run.next >= LAST_ROUTE_INDEX) {
-    transitionIntroScene(() => finish(true));
-    return;
-  }
-  const next = run.next + 1;
-  transitionIntroScene(() => {
-    run.next = next;
-    run.mode = 'section';
-    showSearchPage(next);
-  });
 }
 
 function update(dt) {
@@ -1520,8 +1708,11 @@ function drawHud(camera, seconds) {
     hintBox.hidden = !flyingMission;
     hintBox.classList.toggle('is-near', flyingMission && range <= 600);
   }
+  const section = SECTIONS[run.next];
+  const hintLabel = byId('hint-label');
   const hintText = byId('hint-text');
-  if (hintText && SECTIONS[run.next]) hintText.textContent = SECTIONS[run.next].hint;
+  if (section && hintLabel) hintLabel.textContent = '提示：' + section.hintWhere;
+  if (section && hintText) hintText.textContent = section.hint;
   marker.hidden = !(flyingMission && range <= 300);
   byId('reticle').hidden = !flying || !run.camera;
   if (!marker.hidden) {
