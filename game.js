@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1708';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-0054';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -92,19 +92,21 @@ canvas.addEventListener('webglcontextlost', event => {
   showInitFailure('context-lost', Error('手機 3D 資源已中斷；請用相容模式重載'));
 });
 
-// Named OSM objects cross-checked against LandsD's Cheung Chau GeoPDF.
+// Named coastal objects; Tung Wan moved onto the sandy beach using LandsD imagery.
 // Nam Tam is the actual locality, NOT Po Toi's identically named bay.
 const MISSION_TIME_LIMIT = 600;
 const route = [
-  { name: '東灣', lat: 22.2118374, lon: 114.0323076, source: 'https://www.openstreetmap.org/node/1134027637' },
+  { name: '東灣', lat: 22.211842, lon: 114.029212, source: 'http://www.hong-kong.su/tung-wan-beach/' },
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
   { name: '東灣仔', lat: 22.2184665, lon: 114.0334993, source: 'https://www.openstreetmap.org/node/1134027647' },
   { name: '觀音灣（饅頭石）', lat: 22.2087992, lon: 114.0369247, source: 'https://www.openstreetmap.org/way/596846734' }
-].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon), y: HK.MIN_AGL }));
+].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon) }));
 const LAST_ROUTE_INDEX = route.length - 1;
 function missionTarget(index = run.next) {
   const point = route[index];
-  return { ...point, y: Math.max(point.y, terrainFloor(point.x, point.z)) };
+  // Re-sample the current rendered surface: streamed terrain may arrive mid-flight.
+  // A checkpoint centre is always 30 m AGL, not a cached sea-level altitude.
+  return { ...point, y: terrainFloor(point.x, point.z) };
 }
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
@@ -212,7 +214,7 @@ function selectedPlace() {
   return (HK.places && HK.places[0]) || { id: 'south-approach', name: '南面海域', lat: 22.1892017, lon: 114.0360482, yaw: 5.934119456780721, altitude: 589, mission: true };
 }
 
-const MIN_AGL = (typeof HK !== 'undefined' && HK.MIN_AGL) || 100;
+const MIN_AGL = (typeof HK !== 'undefined' && HK.MIN_AGL) || 30;
 
 function surfaceHeight(x, z) {
   return Math.max(0, elevation(x, z));
@@ -228,7 +230,7 @@ function altitudeAgl(x, y, z) {
 
 function placeCraft(place, explore) {
   const pos = HK.toXZ(place.lat, place.lon);
-  // Global floor stays 100 m AGL; a place may start higher (e.g. 589 m).
+  // Global floor stays 30 m AGL; a place may start higher (e.g. 589 m).
   const floor = terrainFloor(pos.x, pos.z);
   const ceiling = (typeof HK !== 'undefined' && HK.MAX_ALTITUDE) || 2500;
   const startY = place.altitude != null ? clamp(place.altitude, floor, ceiling) : floor;
@@ -1588,8 +1590,9 @@ function createObjects(seconds) {
   const target = missionTarget();
   const finishing = run.next === LAST_ROUTE_INDEX;
   const angleToCraft = bearing(target,craft);
-  const radius = 52;
-  const centreY = Math.max(target.y, terrainFloor(target.x, target.z));
+  // Keep the complete low-altitude ring above a flat surface (30 - 22 = 8 m).
+  const radius = 22;
+  const centreY = target.y; // Same live 30 m AGL target as marker and distance gates.
   const stripe = 3.5;
   const showRing = run.mode === 'flying' && !run.explore && distance(craft, target) <= 300;
   if (showRing) {

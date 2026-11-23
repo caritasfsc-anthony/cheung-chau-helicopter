@@ -51,7 +51,7 @@ const HK = (() => {
   const KEEP_RADIUS = 3;
   const MAX_CONCURRENT = 4;
   const MAX_ALTITUDE = 2500;
-  const MIN_AGL = 100;
+  const MIN_AGL = 30;
 
   const toXZ = (lat, lon) => ({
     x: (lon - ORIGIN_LON) * M_PER_DEG_LON,
