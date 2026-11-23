@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1240';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1316';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -35,6 +35,10 @@ function showInitFailure(stage, error) {
   start.textContent = '未能開始飛行';
   if (byId('explore')) byId('explore').disabled = true;
   byId('briefing').textContent = '未能載入 3D 畫面（' + GAME_BUILD + '／' + stage + '）。原因：' + detail;
+  if (window.__introPendingStart) {
+    window.__introPendingStart = false;
+    showInitFailureOverlay();
+  }
 }
 
 function appendBriefing(note) {
@@ -66,9 +70,9 @@ function enableFlightStart() {
   }
   // If the player already pressed next on the last story page, take off now.
   // Guarded so the regression fixture (which only evals this slice) is safe.
-  if (window.__introPendingStart && typeof startFlight === 'function') {
+  if (window.__introPendingStart && typeof tryStartMissionFromIntro === 'function') {
     window.__introPendingStart = false;
-    startFlight(false);
+    tryStartMissionFromIntro();
   }
 }
 
@@ -247,6 +251,59 @@ const INTRO_PAGES = [
   { src: 'intro/06-news.jpg', alt: '飛行服務隊於長洲海岸展開搜救，準備出發' }
 ];
 let introStep = 0;
+let introTransitioning = false;
+let introTransitionTimer = null;
+const INTRO_FADE_MS = 220;
+
+function prefersReducedMotion() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function pulseIntroButton(id) {
+  const node = byId(id);
+  if (!node || prefersReducedMotion()) return;
+  node.classList.remove('feedback-pulse');
+  // Restart the luminous surface ripple, without changing the artwork itself.
+  void node.offsetWidth;
+  node.classList.add('feedback-pulse');
+  setTimeout(() => node.classList.remove('feedback-pulse'), 240);
+}
+
+function transitionIntroScene(change) {
+  if (introTransitioning) return false;
+  const veil = byId('scene-fade');
+  const snapshot = byId('scene-fade-art');
+  const intro = byId('intro');
+  if (prefersReducedMotion() || !veil || !snapshot) {
+    change();
+    return true;
+  }
+  introTransitioning = true;
+  if (intro) intro.setAttribute('aria-busy', 'true');
+  const wasIntro = introVisible();
+  if (wasIntro) snapshot.src = byId('intro-art').src;
+  snapshot.hidden = !wasIntro;
+  veil.classList.remove('is-fading');
+  veil.hidden = false;
+  void veil.offsetWidth;
+  change();
+  veil.classList.add('is-fading');
+  // Release on the actual last animation frame, not a timer that can run
+  // before CSS starts painting. Keep a short fallback for interrupted animations.
+  const complete = event => {
+    if (event && (event.target !== veil || event.animationName !== 'scene-crossfade')) return;
+    veil.removeEventListener('animationend', complete);
+    if (introTransitionTimer !== null) clearTimeout(introTransitionTimer);
+    veil.hidden = true;
+    veil.classList.remove('is-fading');
+    introTransitioning = false;
+    introTransitionTimer = null;
+    if (intro) intro.setAttribute('aria-busy', 'false');
+  };
+  veil.addEventListener('animationend', complete);
+  introTransitionTimer = setTimeout(() => complete(), INTRO_FADE_MS + 80);
+  return true;
+}
 
 function introVisible() {
   const node = byId('intro');
@@ -289,10 +346,13 @@ function isCoarsePointer() {
 }
 
 function startIntroStory() {
+  if (introTransitioning || !introVisible() || introStep !== 0) return;
+  pulseIntroButton('intro-start');
+  // Fullscreen remains synchronous in the original click/keyboard user gesture.
   if (isCoarsePointer() && typeof window.__enterFullscreen === 'function') {
     window.__enterFullscreen();
   }
-  showIntro(1);
+  transitionIntroScene(() => showIntro(1));
 }
 
 function showInitFailureOverlay() {
@@ -315,7 +375,7 @@ function tryStartMissionFromIntro() {
   }
   if (start.dataset.unlocked === '1') {
     window.__introPendingStart = false;
-    startFlight(false);
+    transitionIntroScene(() => startFlight(false));
     return;
   }
   window.__introPendingStart = true;
@@ -323,19 +383,22 @@ function tryStartMissionFromIntro() {
 }
 
 function introNext() {
-  if (!introVisible() || introStep === 0) return;
-  if (introStep < INTRO_PAGES.length - 1) showIntro(introStep + 1);
+  if (introTransitioning || !introVisible() || introStep === 0) return;
+  pulseIntroButton('intro-next');
+  if (introStep < INTRO_PAGES.length - 1) transitionIntroScene(() => showIntro(introStep + 1));
   else tryStartMissionFromIntro();
 }
 
 function introBack() {
   // No wrap past story page 2 (step 1).
-  if (!introVisible() || introStep <= 1) return;
-  showIntro(introStep - 1);
+  if (introTransitioning || !introVisible() || introStep <= 1) return;
+  pulseIntroButton('intro-back');
+  transitionIntroScene(() => showIntro(introStep - 1));
 }
 
 function handleIntroKey(event) {
-  if (!introVisible() || event.repeat) return false;
+  if (!introVisible()) return false;
+  if (event.repeat || introTransitioning) { event.preventDefault(); return true; }
   if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight' || event.code === 'ArrowLeft') {
     event.preventDefault();
   }
@@ -365,10 +428,16 @@ function bindIntroStory() {
   if (startBtn) startBtn.addEventListener('click', startIntroStory);
   if (nextBtn) nextBtn.addEventListener('click', introNext);
   if (backBtn) backBtn.addEventListener('click', introBack);
+  [startBtn, nextBtn, backBtn].forEach(node => {
+    if (node) node.addEventListener('pointerdown', () => {
+      if (!introTransitioning) pulseIntroButton(node.id);
+    });
+  });
   showIntro(0);
 }
 
 function goHome() {
+  if (introTransitioning) return;
   clearFlightInput();
   Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false });
   window.__introPendingStart = false;
@@ -378,7 +447,7 @@ function goHome() {
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
   if (byId('mission-note')) byId('mission-note').hidden = true;
   if (byId('marker')) byId('marker').hidden = true;
-  showIntro(0);
+  transitionIntroScene(() => showIntro(0));
 }
 
 function startFlight(explore = false) {
@@ -649,6 +718,7 @@ function droneModelBasis(state) {
 }
 
 function createHeliRenderer(gl) {
+  const visualScale = 2; // 9 m baked longest axis -> 18 m; camera unchanged.
   const model = window.HELI_MODEL;
   if (!model) throw Error('Helicopter model data missing');
   const vary = (gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) || {}).precision
@@ -663,6 +733,7 @@ function createHeliRenderer(gl) {
     uniform vec2 lens, rotorSpin;
     uniform mat3 modelBasis;
     uniform vec3 rotorPivot, rotorAxis;
+    uniform float visualScale;
     vec3 spin(vec3 p) {
       return p * rotorSpin.x + cross(rotorAxis, p) * rotorSpin.y
         + rotorAxis * dot(rotorAxis, p) * (1.0 - rotorSpin.x);
@@ -671,7 +742,7 @@ function createHeliRenderer(gl) {
     varying ${vary} vec2 vUv;
     varying ${vary} float depth, bitangentSign;
     void main() {
-      vec3 local = modelBasis * (rotorPivot + spin(position - rotorPivot));
+      vec3 local = modelBasis * ((rotorPivot + spin(position - rotorPivot)) * visualScale);
       vec3 world = modelPos + local;
       vec3 delta = world - eye;
       depth = dot(delta, forwardAxis);
@@ -761,7 +832,7 @@ function createHeliRenderer(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, packed, gl.STATIC_DRAW);
   const uniforms = gameEntries(
-    ['eye','rightAxis','upAxis','forwardAxis','lens','modelPos','modelBasis','rotorPivot','rotorAxis','rotorSpin',
+    ['eye','rightAxis','upAxis','forwardAxis','lens','modelPos','modelBasis','rotorPivot','rotorAxis','rotorSpin','visualScale',
      'baseColorMap','metallicRoughnessMap','normalMap','baseColorFactor','metallicFactor','roughnessFactor','clearcoatFactor','clearcoatRoughnessFactor']
       .map(name => [name, gl.getUniformLocation(program, name)])
   );
@@ -782,7 +853,7 @@ function createHeliRenderer(gl) {
   const stride = 48;
   return {
     ready,
-    debug: () => ({ originalFaces: indices.length / 3, ranges: ranges.map(r => ({ ...r })), rotors: model.rotors, flying: run.mode === 'flying' }),
+    debug: () => ({ originalFaces: indices.length / 3, ranges: ranges.map(r => ({ ...r })), rotors: model.rotors, visualScale, dimensionsMetres: model.bounds ? model.bounds.max.map((value, i) => (value - model.bounds.min[i]) * visualScale) : null, flying: run.mode === 'flying' }),
     draw(camera) {
       if (run.camera) return;
       gl.useProgram(program);
@@ -794,6 +865,7 @@ function createHeliRenderer(gl) {
       gl.uniform2f(uniforms.lens, camera.fx, camera.fy);
       gl.uniform3f(uniforms.modelPos, craft.x, craft.y, craft.z);
       gl.uniformMatrix3fv(uniforms.modelBasis, false, droneModelBasis(craft));
+      gl.uniform1f(uniforms.visualScale, visualScale);
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, maps[0].texture);
       gl.activeTexture(gl.TEXTURE3);
