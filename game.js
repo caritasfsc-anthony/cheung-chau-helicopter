@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1010';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1100';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -89,7 +89,7 @@ const route = [
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
   { name: '東灣仔', lat: 22.2184665, lon: 114.0334993, source: 'https://www.openstreetmap.org/node/1134027647' },
   { name: '觀音灣（饅頭石）', lat: 22.2087992, lon: 114.0369247, source: 'https://www.openstreetmap.org/way/596846734' }
-].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon), y: 200 }));
+].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon), y: HK.MIN_AGL }));
 const LAST_ROUTE_INDEX = route.length - 1;
 function missionTarget(index = run.next) {
   const point = route[index];
@@ -206,7 +206,7 @@ function selectedPlace() {
   return (HK.places && HK.places[0]) || { id: 'tung-wan', name: '東灣', lat: 22.2107293, lon: 114.0297723, yaw: 1.1306038649673362, mission: true };
 }
 
-const MIN_AGL = (typeof HK !== 'undefined' && HK.MIN_AGL) || 200;
+const MIN_AGL = (typeof HK !== 'undefined' && HK.MIN_AGL) || 100;
 
 function surfaceHeight(x, z) {
   return Math.max(0, elevation(x, z));
@@ -222,7 +222,7 @@ function altitudeAgl(x, y, z) {
 
 function placeCraft(place, explore) {
   const pos = HK.toXZ(place.lat, place.lon);
-  // All starts, teleports and restarts stay at least 200 m AGL, never below sea.
+  // All starts, teleports and restarts stay at least 100 m AGL, never below sea.
   Object.assign(craft, {
     x: pos.x,
     y: terrainFloor(pos.x, pos.z),
@@ -1042,18 +1042,19 @@ chart.width = 180;
 chart.height = 160;
 const chartContext = chart.getContext('2d');
 const chartImages = [];
-const chartPoint = (x,z) => [90+x/28,80-z/28];
+const chartPoint = (x,z) => HK.minimapProjection(chart.width, chart.height).worldToPix(x,z);
 function paintChart() {
   chartContext.fillStyle = '#204d5d';
   chartContext.fillRect(0,0,180,160);
+  const frame = HK.minimapProjection(chart.width, chart.height);
+  const x0 = frame.x0, z0 = frame.z0, mpp = frame.metersPerPixel;
   chartImages.forEach((image,unit) => {
     // Map chart pixels to the same north-up aerial tile coordinates as the terrain shader.
     const scale = unit ? 128 : 16;
     const tileX = unit ? 14 : 23, tileY = unit ? 19 : 80;
-    const x0 = -90*28, z0 = 80*28;
     const transform = new DOMMatrix([
-      scale*.00706204649*28,-scale*.000006799489*28,
-      scale*.000006988322*28,scale*.00710306546*28,
+      scale*.00706204649*mpp,-scale*.000006799489*mpp,
+      scale*.000006988322*mpp,scale*.00710306546*mpp,
       scale*(tileX+.827321833+x0*.00706204649-z0*.000006988322),
       scale*(tileY-.046492600-x0*.000006799489-z0*.00710306546)
     ]);

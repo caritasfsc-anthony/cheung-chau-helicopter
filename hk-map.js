@@ -51,7 +51,7 @@ const HK = (() => {
   const KEEP_RADIUS = 3;
   const MAX_CONCURRENT = 4;
   const MAX_ALTITUDE = 2500;
-  const MIN_AGL = 200;
+  const MIN_AGL = 100;
 
   const toXZ = (lat, lon) => ({
     x: (lon - ORIGIN_LON) * M_PER_DEG_LON,
@@ -61,6 +61,35 @@ const HK = (() => {
     lon: ORIGIN_LON + x / M_PER_DEG_LON,
     lat: ORIGIN_LAT + z / M_PER_DEG_LAT
   });
+
+  // Fixed north-up minimap: the island and the four mission gates fill the
+  // chart. It does not follow the craft, and it is tighter than the 1.5 km
+  // flight-sea box so distant water and other islands do not dominate.
+  const MINIMAP = { west: 114.017, east: 114.039, south: 22.1965, north: 22.2215 };
+  const MINIMAP_PAD = 0.08;
+  function minimapProjection(width, height) {
+    const sw = toXZ(MINIMAP.south, MINIMAP.west);
+    const ne = toXZ(MINIMAP.north, MINIMAP.east);
+    const minX = sw.x, maxX = ne.x, minZ = sw.z, maxZ = ne.z;
+    const cx = (minX + maxX) / 2;
+    const cz = (minZ + maxZ) / 2;
+    const metersPerPixel = Math.max(
+      (maxX - minX) / (width * (1 - 2 * MINIMAP_PAD)),
+      (maxZ - minZ) / (height * (1 - 2 * MINIMAP_PAD))
+    );
+    function worldToPix(x, zz) {
+      return [
+        width / 2 + (x - cx) / metersPerPixel,
+        height / 2 - (zz - cz) / metersPerPixel
+      ];
+    }
+    return {
+      worldToPix, metersPerPixel, cx, cz, minX, maxX, minZ, maxZ,
+      x0: cx - (width / 2) * metersPerPixel,
+      z0: cz + (height / 2) * metersPerPixel
+    };
+  }
+
 
   function lon2tile(lon, z) { return (lon + 180) / 360 * (1 << z); }
   function lat2tile(lat, z) {
@@ -611,11 +640,7 @@ const HK = (() => {
       const width = ctx.canvas.width, height = ctx.canvas.height;
       ctx.fillStyle = '#204d5d';
       ctx.fillRect(0, 0, width, height);
-      const scale = 90;
-      const worldToPix = (x, zz) => [
-        width / 2 + (x - craft.x) / scale,
-        height / 2 - (zz - craft.z) / scale
-      ];
+      const worldToPix = minimapProjection(width, height).worldToPix;
       const layers = [...images.entries()].map(([key, image]) => {
         const parts = key.split('/');
         return { image, kind: parts[0], z: +parts[1], x: +parts[2], y: +parts[3] };
@@ -674,7 +699,7 @@ const HK = (() => {
   }
 
   return {
-    ORIGIN_LAT, ORIGIN_LON, bounds, places, MAX_ALTITUDE, MIN_AGL,
+    ORIGIN_LAT, ORIGIN_LON, bounds, places, MAX_ALTITUDE, MIN_AGL, MINIMAP, minimapProjection,
     LANDSD_LOGO, IMAGERY_TMPL, TERRAIN_TMPL, heightDebug,
     toXZ, toLonLat, lon2tile, lat2tile, tile2lon, tile2lat,
     tilesCovering, tileKey, tileBoundsXZ, planSurfaceTiles, createTileManager,

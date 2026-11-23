@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store">
 <title>長洲直升機巡航｜學校版</title>
-<link rel="stylesheet" href="style.css?v=s1-20261123-1010">
+<link rel="stylesheet" href="style.css?v=s1-20261123-1100">
 <script>
-window.GAME_BUILD = 's1-20261123-1010';
+window.GAME_BUILD = 's1-20261123-1100';
 window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
 // ES5 bootstrap remains executable even if a later game script fails to parse.
@@ -94,8 +94,8 @@ window.addEventListener('unhandledrejection', function(ev) {
   });
 });
 </script>
-<script defer src="hk-map.js?v=s1-20261123-1010" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
-<script defer src="game.js?v=s1-20261123-1010"></script>
+<script defer src="hk-map.js?v=s1-20261123-1100" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1100"></script>
 </head>
 <body>
 <main>
@@ -103,7 +103,7 @@ window.addEventListener('unhandledrejection', function(ev) {
 <header>
   <div class="brand">長洲直升機巡航 <small>CHEUNG CHAU SCHOOL EDITION</small></div>
   <div class="header-tools">
-    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1010</div>
+    <div id="build-id" title="版本識別" hidden>版本 s1-20261123-1100</div>
     <button id="camera" disabled>切換視角 <kbd>C</kbd></button>
   </div>
 </header>
@@ -117,7 +117,7 @@ window.addEventListener('unhandledrejection', function(ev) {
       <option value="baked">只用本地長洲高程／地圖</option>
     </select></label></aside>
 <section class="telemetry" aria-label="飛行儀表">
-<div><small>海拔</small><strong id="height">0</strong> m</div><div><small>離地</small><strong id="agl">200</strong> m</div><div><small>地速</small><strong id="speed">0</strong> km/h</div><div><small>航向</small><strong id="heading">000</strong> °</div><div><small>電量</small><strong id="battery">100</strong> %</div>
+<div><small>海拔</small><strong id="height">0</strong> m</div><div><small>離地</small><strong id="agl">100</strong> m</div><div><small>地速</small><strong id="speed">0</strong> km/h</div><div><small>航向</small><strong id="heading">000</strong> °</div><div><small>電量</small><strong id="battery">100</strong> %</div>
 </section>
 <div class="keyboard">WASD 平移　 Q / E 轉向　 Space / Shift 升降　 R 重飛</div>
 <div class="touch" aria-label="觸控飛行">
@@ -137,11 +137,11 @@ window.addEventListener('unhandledrejection', function(ev) {
 <div class="brief-actions">
 <button id="start" disabled>載入畫面…</button>
 <button id="explore" class="secondary" disabled>自由飛行</button>
-<a id="startup-retry" href="?v=s1-20261123-1010&amp;quality=low">手機相容模式重載</a>
+<a id="startup-retry" href="?v=s1-20261123-1100&amp;quality=low">手機相容模式重載</a>
 </div>
 <div class="brief-content">
-<p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 200 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
-<p id="start-hint" class="controls">任務與自由飛行都從離地 200 米開始，不能再降低。在東灣泳灘附近起飛後，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
+<p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 100 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
+<p id="start-hint" class="controls">任務與自由飛行都從離地 100 米開始，不能再降低。在東灣泳灘附近起飛後，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
 <p class="controls">電腦可用 WASD 平移、Q / E 轉向、空白鍵升高、Shift 下降。手機請用畫面上的飛行按鈕。</p>
 </div>
 </section>
