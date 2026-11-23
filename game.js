@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1345';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261123-1400';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -495,7 +495,7 @@ function update(dt) {
   run.time += dt;
   if (!run.explore && run.time >= MISSION_TIME_LIMIT) return finish(false);
   const axis = (positive, negative) => Number(active(positive)) - Number(active(negative));
-  craft.yaw += axis('KeyE', 'KeyQ') * dt * 1.7;
+  craft.yaw += (Number(active('KeyR') || active('KeyE')) - Number(active('KeyQ'))) * dt * 1.7;
   const forward = axis('KeyW', 'KeyS');
   const side = axis('KeyD', 'KeyA');
   const vertical = Number(active('KeyJ') || active('Space')) - Number(active('KeyM') || active('ShiftLeft') || active('ShiftRight') || active('KeyX'));
@@ -529,11 +529,10 @@ if (byId('explore')) byId('explore').addEventListener('click', () => startFlight
 if (byId('home')) byId('home').addEventListener('click', goHome);
 if (byId('title-home')) byId('title-home').addEventListener('click', goHome);
 bindIntroStory();
-const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'Space', 'ShiftLeft', 'ShiftRight', 'KeyX']);
+const flightKeys = new Set([...buttons.map(button => button.dataset.key), 'Space', 'ShiftLeft', 'ShiftRight', 'KeyX', 'KeyE']);
 window.addEventListener('keydown', event => {
   if (event.target.closest('select,input,textarea,[contenteditable]')) return;
   if (handleIntroKey(event)) return;
-  if (event.code === 'KeyR' && run.mode !== 'ready' && !event.repeat && !start.disabled) startFlight(run.explore);
   if (run.mode !== 'flying') return;
   if (event.code === 'KeyC' && !event.repeat) toggleCamera();
   if (!flightKeys.has(event.code) || (event.code === 'Space' && event.target.closest('button,a'))) return;

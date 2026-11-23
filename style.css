@@ -65,20 +65,25 @@ kbd{margin-left:.4em;color:#b7d8d0}
 #build-id[data-error]{background:#ff8a7a;white-space:normal;line-height:1.3}
 
 .touch{display:block;inset:0;pointer-events:none;z-index:5}
-.pad{pointer-events:auto}
-.pad.dpad{position:absolute;display:grid;grid-template-columns:repeat(3,11.3cqh);grid-template-rows:repeat(2,11.3cqh);gap:1.57cqh;width:auto}
+.pad{pointer-events:none}
+.pad.dpad{position:absolute;display:grid;grid-template-columns:repeat(3,11.3cqh);grid-template-rows:repeat(3,11.3cqh);gap:1.57cqh;width:auto;overflow:visible}
 .move-pad{left:2.5%;bottom:2.3%}
-.lift-pad{right:2.5%;bottom:2.3%;grid-template-columns:11.3cqh;grid-template-rows:repeat(2,11.3cqh)}
-.move-pad [data-key="KeyQ"]{grid-column:1;grid-row:1}
-.move-pad [data-key="KeyW"]{grid-column:2;grid-row:1}
-.move-pad [data-key="KeyE"]{grid-column:3;grid-row:1}
-.move-pad [data-key="KeyA"]{grid-column:1;grid-row:2}
-.move-pad [data-key="KeyS"]{grid-column:2;grid-row:2}
-.move-pad [data-key="KeyD"]{grid-column:3;grid-row:2}
-.lift-pad [data-key="KeyJ"]{grid-column:1;grid-row:1}
-.lift-pad [data-key="KeyM"]{grid-column:1;grid-row:2}
-.pad.dpad button{width:11.3cqh;height:11.3cqh;min-width:0;min-height:0;padding:0;border:0;border-radius:22%;display:flex;align-items:center;justify-content:center;color:#fff;background:#0e2a35f0;font-size:3.4cqh;font-weight:800;letter-spacing:.06em;line-height:1}
+.lift-pad{right:2.5%;bottom:2.3%}
+.move-pad [data-key="KeyW"],.lift-pad [data-key="KeyJ"]{grid-column:2;grid-row:1}
+.move-pad [data-key="KeyA"],.lift-pad [data-key="KeyQ"]{grid-column:1;grid-row:2}
+.move-pad [data-key="KeyD"],.lift-pad [data-key="KeyR"]{grid-column:3;grid-row:2}
+.move-pad [data-key="KeyS"],.lift-pad [data-key="KeyM"]{grid-column:2;grid-row:3}
+.pad.dpad button{position:relative;width:11.3cqh;height:11.3cqh;min-width:0;min-height:0;padding:0;border:0;border-radius:22%;display:flex;align-items:center;justify-content:center;color:#fff;background:#0e2a35f0;overflow:visible;pointer-events:auto}
+.pad.dpad button svg{width:46%;height:46%;display:block;pointer-events:none}
+.pad.dpad button svg path{fill:currentColor}
+.pad.dpad button.turn svg,.pad.dpad button.turn svg path{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .pad.dpad button.pressed,.pad.dpad button:active{background:#1c4a56}
+.pad-key{position:absolute;z-index:1;font-size:3.5cqh;font-weight:900;letter-spacing:0;line-height:1;color:#fff;pointer-events:none;paint-order:stroke fill;-webkit-text-stroke:.45cqh #0b1c24;text-shadow:-.12cqh -.12cqh 0 #0b1c24,.12cqh -.12cqh 0 #0b1c24,-.12cqh .12cqh 0 #0b1c24,.12cqh .12cqh 0 #0b1c24,0 0 .35cqh #0b1c24}
+/* Letters sit on the inner edge and slightly overflow the rounded square. */
+.pad-n .pad-key{left:50%;top:100%;transform:translate(-50%,-38%)}
+.pad-s .pad-key{left:50%;top:0;transform:translate(-50%,-62%)}
+.pad-w .pad-key{left:100%;top:50%;transform:translate(-38%,-50%)}
+.pad-e .pad-key{left:0;top:50%;transform:translate(-62%,-50%)}
 .touch,.pad,.pad button,.pad button *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;touch-action:none}
 .pad button{-webkit-tap-highlight-color:transparent}
 

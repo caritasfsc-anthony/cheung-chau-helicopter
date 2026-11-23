@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store">
 <title>長洲直升機巡航｜學校版</title>
-<link rel="stylesheet" href="style.css?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/01-title.jpg?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/02-depart.jpg?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/03-late.jpg?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/04-skill.jpg?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/05-accident.jpg?v=s1-20261123-1345">
-<link rel="preload" as="image" href="intro/06-news.jpg?v=s1-20261123-1345">
+<link rel="stylesheet" href="style.css?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/01-title.jpg?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/02-depart.jpg?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/03-late.jpg?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/04-skill.jpg?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/05-accident.jpg?v=s1-20261123-1400">
+<link rel="preload" as="image" href="intro/06-news.jpg?v=s1-20261123-1400">
 <script>
-window.GAME_BUILD = 's1-20261123-1345';
+window.GAME_BUILD = 's1-20261123-1400';
 window.GAME_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 if (!window.GAME_DEBUG) document.documentElement.classList.add('release');
 // ES5 bootstrap remains executable even if a later game script fails to parse.
@@ -100,14 +100,14 @@ window.addEventListener('unhandledrejection', function(ev) {
   });
 });
 </script>
-<script defer src="hk-map.js?v=s1-20261123-1345" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
-<script defer src="game.js?v=s1-20261123-1345"></script>
+<script defer src="hk-map.js?v=s1-20261123-1400" onload="if(!window.__startupInfo.ready)window.__startup('scripts','核心程式 1/2 已載入；正在載入飛行控制',false)"></script>
+<script defer src="game.js?v=s1-20261123-1400"></script>
 </head>
 <body>
 <main>
 <div id="stage">
 <canvas id="world" aria-label="長洲直升機三維飛行畫面"></canvas>
-<div id="build-id" title="版本識別" hidden>版本 s1-20261123-1345</div>
+<div id="build-id" title="版本識別" hidden>版本 s1-20261123-1400</div>
 <div class="top-bar">
   <button type="button" id="home" class="icon-btn flight-hud" aria-label="主頁" title="主頁">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11.2 12 4.4l7.5 6.8v8.4a1.2 1.2 0 0 1-1.2 1.2h-4.3v-5.3h-4v5.3H5.7a1.2 1.2 0 0 1-1.2-1.2z"/></svg>
@@ -140,21 +140,21 @@ window.addEventListener('unhandledrejection', function(ev) {
 <div id="reticle" hidden>＋</div>
 <aside class="map flight-hud"><canvas id="map" width="256" height="256" aria-label="航線小地圖"></canvas></aside>
 <div class="touch flight-hud" aria-label="飛行控制">
-<div class="pad dpad move-pad" aria-label="平移轉向">
-<button type="button" data-key="KeyQ" aria-label="左轉">Q</button>
-<button type="button" data-key="KeyW" aria-label="前移">W</button>
-<button type="button" data-key="KeyE" aria-label="右轉">E</button>
-<button type="button" data-key="KeyA" aria-label="左移">A</button>
-<button type="button" data-key="KeyS" aria-label="後移">S</button>
-<button type="button" data-key="KeyD" aria-label="右移">D</button>
+<div class="pad dpad move-pad" aria-label="平移">
+<button type="button" class="pad-n" data-key="KeyW" aria-label="前移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 19 17H5z"/></svg><span class="pad-key">W</span></button>
+<button type="button" class="pad-w" data-key="KeyA" aria-label="左移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12 17 5v14z"/></svg><span class="pad-key">A</span></button>
+<button type="button" class="pad-s" data-key="KeyS" aria-label="後移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19 5 7h14z"/></svg><span class="pad-key">S</span></button>
+<button type="button" class="pad-e" data-key="KeyD" aria-label="右移"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12 7 5v14z"/></svg><span class="pad-key">D</span></button>
 </div>
-<div class="pad dpad lift-pad" aria-label="升降">
-<button type="button" data-key="KeyJ" aria-label="升高">J</button>
-<button type="button" data-key="KeyM" aria-label="下降">M</button>
+<div class="pad dpad lift-pad" aria-label="升降轉向">
+<button type="button" class="pad-n" data-key="KeyJ" aria-label="升高"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 6 12h3.8v8h4.4v-8H18z"/></svg><span class="pad-key">J</span></button>
+<button type="button" class="pad-w turn" data-key="KeyQ" aria-label="左轉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 6.2H4.4V10"/><path d="M19.2 15.2A7 7 0 1 0 6.6 9.4"/></svg><span class="pad-key">Q</span></button>
+<button type="button" class="pad-s" data-key="KeyM" aria-label="下降"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 18 12h-3.8V4H9.8v8H6z"/></svg><span class="pad-key">M</span></button>
+<button type="button" class="pad-e turn" data-key="KeyR" aria-label="右轉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.8 6.2h3.8V10"/><path d="M4.8 15.2A7 7 0 1 1 17.4 9.4"/></svg><span class="pad-key">R</span></button>
 </div>
 </div>
 <div id="map-credit" class="flight-hud">
-  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1345" width="120" height="14" alt="地政總署">
+  <img class="landsd-logo" src="landsd-logo.svg?v=s1-20261123-1400" width="120" height="14" alt="地政總署">
   <p>Aerial Photograph from Lands Department／航拍影像 © 地政總署</p>
 </div>
 <section id="stream-notice" hidden aria-label="地圖載入狀態">
@@ -171,26 +171,26 @@ window.addEventListener('unhandledrejection', function(ev) {
 <button type="button" id="start" disabled>載入畫面…</button>
 <button type="button" id="title-home">返回標題</button>
 <button type="button" id="explore" class="secondary" hidden disabled>自由飛行</button>
-<a id="startup-retry" href="?v=s1-20261123-1345&amp;quality=low">手機相容模式重載</a>
+<a id="startup-retry" href="?v=s1-20261123-1400&amp;quality=low">手機相容模式重載</a>
 </div>
 <div class="brief-content">
 <p id="briefing">這是長洲學校版直升機巡航。全程最低離地高度為 100 米，方便觀看航拍地貌。地圖只載入長洲及附近海域，不能飛往香港其他地區。圖磚未到也可先開始；失敗時會改用長洲離線地圖並在畫面標示。直升機模型於起飛後背景下載，同一局會自動顯示。</p>
 <div id="start-help" hidden>
 <p id="start-hint" class="controls">任務與自由飛行都從離地 100 米開始，不能再降低。本次從長洲南面海域、海拔 589 米起飛，先飛入東灣巡查圈，再依次前往南氹、東灣仔、觀音灣（饅頭石）。限時 10 分鐘；飛入各站巡查圈即可，最後一站完成任務，無需返回碼頭或降落。</p>
-<p class="controls">電腦同手機畫面都會顯示 QWEASD 與 J／M 控制鍵。鍵盤亦可用空白鍵升高，Shift 或 X 下降。手機請打橫再玩，建議先開全屏幕。</p>
+<p class="controls">電腦同手機畫面都會顯示左下 WASD 與右下 J／Q／R／M 控制鍵。鍵盤亦可用空白鍵升高，Shift 或 X 下降，E 亦可右轉。手機請打橫再玩，建議先開全屏幕。</p>
 </div>
 </div>
 <p class="sources-brief">來源：航拍影像 © 地政總署　高程 <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen</a>／<a href="https://data.gov.hk/en-data/dataset/hk-landsd-openmap-5m-grid-dtm">地政 5 米 DTM</a>　模型 <a href="https://sketchfab.com/3d-models/animated-civilian-helicopter-f25c041a8d004eb092e4aa41d1dc33f4">assetfactory（Sketchfab）</a>　地點 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a></p>
 </section>
 </div>
 <div id="intro">
-  <img id="intro-art" src="intro/01-title.jpg?v=s1-20261123-1345" width="1920" height="1080" alt="郊野學園考察團　出發吧～認識海岸地貌" draggable="false">
+  <img id="intro-art" src="intro/01-title.jpg?v=s1-20261123-1400" width="1920" height="1080" alt="郊野學園考察團　出發吧～認識海岸地貌" draggable="false">
   <div id="intro-preload" hidden aria-hidden="true">
-    <img src="intro/02-depart.jpg?v=s1-20261123-1345" alt="" draggable="false">
-    <img src="intro/03-late.jpg?v=s1-20261123-1345" alt="" draggable="false">
-    <img src="intro/04-skill.jpg?v=s1-20261123-1345" alt="" draggable="false">
-    <img src="intro/05-accident.jpg?v=s1-20261123-1345" alt="" draggable="false">
-    <img src="intro/06-news.jpg?v=s1-20261123-1345" alt="" draggable="false">
+    <img src="intro/02-depart.jpg?v=s1-20261123-1400" alt="" draggable="false">
+    <img src="intro/03-late.jpg?v=s1-20261123-1400" alt="" draggable="false">
+    <img src="intro/04-skill.jpg?v=s1-20261123-1400" alt="" draggable="false">
+    <img src="intro/05-accident.jpg?v=s1-20261123-1400" alt="" draggable="false">
+    <img src="intro/06-news.jpg?v=s1-20261123-1400" alt="" draggable="false">
   </div>
   <button type="button" id="intro-start" class="intro-hit intro-start" aria-label="START"></button>
   <button type="button" id="intro-back" class="intro-hit intro-back" aria-label="上一頁" hidden></button>
