@@ -109,13 +109,14 @@ body:has(#liftoff:not([hidden])) .flight-hud,
 body.need-landscape .flight-hud{display:none!important}
 /* Keep the existing fullscreen control in the top-right when HUD siblings are hidden. */
 body:has(#overlay:not([hidden])) #fullscreen,
-body:has(#intro:not([hidden])) #fullscreen,
 body:has(#ending:not([hidden])) #fullscreen,
 body:has(#liftoff:not([hidden])) #fullscreen{margin-left:auto}
+body:has(#intro:not([hidden])) #mute{margin-left:auto}
 /* Home stays available during the ending film so the player can leave. */
 body:has(#ending:not([hidden])) #home{display:inline-flex!important}
 body:has(#liftoff:not([hidden])) #home,
 body:has(#liftoff:not([hidden])) #fullscreen{display:inline-flex!important}
+body:has(#intro:not([hidden])) #mute{display:inline-flex!important}
 
 #stream-notice{z-index:6;top:30%;left:50%;transform:translateX(-50%);width:min(92%,32cqw);padding:9px 12px;background:#102531ed;border:1px solid #bdd9d980;border-radius:8px;font-size:1.5cqh;line-height:1.4;pointer-events:none}
 #stream-message,#model-status{display:block;letter-spacing:0}

@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1504';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1529';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -411,6 +411,8 @@ function showFoundPage(index) {
   const art = byId('intro-art');
   const section = SECTIONS[index];
   if (!node || !art || !section) return;
+  if (typeof fadeBgmOut === 'function') fadeBgmOut(400);
+  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   introPhase = 'found';
   window.__introPendingStart = false;
   art.src = section.found + '?v=' + GAME_BUILD;
@@ -467,6 +469,7 @@ function startIntroStory() {
   }
   // Warm video/audio in this gesture so later unmuted playback is more likely to be allowed.
   if (typeof preloadLiftoffMedia === 'function') preloadLiftoffMedia();
+  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   transitionIntroScene(() => showIntro(1));
 }
 
@@ -524,8 +527,10 @@ function syncMuteButton() {
 
 function applyMute(muted, persist) {
   const bgm = byId('bgm');
+  const theme = byId('theme');
   const video = byId('liftoff-video');
   if (bgm) bgm.muted = !!muted;
+  if (theme) theme.muted = !!muted;
   if (video) video.muted = !!muted;
   const btn = byId('mute');
   if (btn) btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
@@ -601,6 +606,68 @@ function startBgm(fadeMs) {
   else fade();
 }
 
+
+const THEME_VOLUME = 0.55;
+let themeWanted = false;
+
+function startTheme(options) {
+  const opts = options || {};
+  const theme = byId('theme');
+  if (!theme) return;
+  themeWanted = true;
+  if (typeof document !== "undefined" && document.hidden) return;
+  applyMute(isMuted(), false);
+  theme.loop = true;
+  if (opts.fromStart) {
+    try { theme.currentTime = 0; } catch (error) {}
+  }
+  if (!opts.fadeMs) theme.volume = isMuted() ? 0 : THEME_VOLUME;
+  else if (theme.paused) theme.volume = 0;
+  const result = tryPlayMedia(theme);
+  const fade = () => {
+    if (!themeWanted) return;
+    fadeMediaVolume(theme, isMuted() ? 0 : THEME_VOLUME, opts.fadeMs || 0);
+  };
+  if (result && typeof result.then === 'function') result.then(fade, () => {});
+  else fade();
+}
+
+function pauseTheme(reset) {
+  themeWanted = false;
+  const theme = byId('theme');
+  if (!theme) return;
+  try { if (typeof theme.pause === 'function') theme.pause(); } catch (error) {}
+  if (reset) {
+    try { theme.currentTime = 0; } catch (error) {}
+    theme.volume = 0;
+  }
+}
+
+function fadeThemeOut(ms, reset) {
+  themeWanted = false;
+  const theme = byId('theme');
+  if (!theme) return;
+  fadeMediaVolume(theme, 0, ms || 0, () => {
+    if (themeWanted) return;
+    try { if (typeof theme.pause === 'function') theme.pause(); } catch (error) {}
+    if (reset !== false) {
+      try { theme.currentTime = 0; } catch (error) {}
+      theme.volume = 0;
+    }
+  });
+}
+
+function fadeBgmOut(ms) {
+  cancelBgmFade();
+  bgmWanted = false;
+  const bgm = byId('bgm');
+  if (!bgm) return;
+  fadeMediaVolume(bgm, 0, ms || 0, () => {
+    if (bgmWanted) return;
+    try { if (typeof bgm.pause === 'function') bgm.pause(); } catch (error) {}
+  });
+}
+
 function preloadLiftoffMedia() {
   const video = byId('liftoff-video');
   if (video) {
@@ -614,6 +681,13 @@ function preloadLiftoffMedia() {
     bgm.loop = true;
     bgm.preload = 'auto';
     try { if (typeof bgm.load === 'function') bgm.load(); } catch (error) {}
+  }
+  const theme = byId('theme');
+  if (theme) {
+    if (!theme.getAttribute('src') && !theme.src) theme.src = 'media/theme.mp3?v=' + GAME_BUILD;
+    theme.loop = true;
+    theme.preload = 'auto';
+    try { if (typeof theme.load === 'function') theme.load(); } catch (error) {}
   }
 }
 
@@ -769,6 +843,8 @@ function bindLiftoffAndBgm() {
   if (mute) mute.addEventListener('click', toggleMute);
   const bgm = byId('bgm');
   if (bgm) bgm.loop = true;
+  const theme = byId('theme');
+  if (theme) theme.loop = true;
 }
 
 function suspendGameAudio() {
@@ -780,6 +856,10 @@ function suspendGameAudio() {
   if (bgm && typeof bgm.pause === 'function') {
     try { bgm.pause(); } catch (error) {}
   }
+  const theme = byId('theme');
+  if (theme && typeof theme.pause === 'function') {
+    try { theme.pause(); } catch (error) {}
+  }
 }
 
 function resumeGameAudio() {
@@ -789,6 +869,7 @@ function resumeGameAudio() {
     if (video && video.paused) tryPlayMedia(video);
   }
   if (bgmWanted) startBgm(200);
+  if (themeWanted) startTheme({ fadeMs: 200 });
 }
 
 function startOrResumeSection() {
@@ -806,11 +887,13 @@ function startOrResumeSection() {
     // Later sections still use beginSectionFlight and keep the shared clock, but
     // they now respawn at the mission-1 start so later checkpoints are not reached immediately.
     const firstTakeoff = !run.sessionStarted;
+    if (typeof fadeThemeOut === 'function') fadeThemeOut(500, true);
     if (firstTakeoff && typeof startLiftoffFromGesture === 'function') startLiftoffFromGesture();
     transitionIntroScene(() => {
       if (run.sessionStarted && typeof beginSectionFlight === 'function') beginSectionFlight();
       else startFlight(false);
       if (firstTakeoff && typeof revealLiftoffOverlay === 'function') revealLiftoffOverlay();
+      else if (typeof startBgm === 'function') startBgm(400);
     });
     return;
   }
@@ -1036,6 +1119,7 @@ function startEndingFromFound() {
   preloadEnding();
   endingActive = true;
   if (typeof pauseBgm === 'function') pauseBgm(false);
+  if (typeof fadeThemeOut === 'function') fadeThemeOut(400, true);
   // Start playback in this user-gesture turn, before the 480 ms visual cut.
   // Waiting for transitionIntroScene would cause browsers to block unmuted play().
   tryPlayEnding(true);
@@ -1065,6 +1149,7 @@ function goHome() {
   stopEnding();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
   if (typeof pauseBgm === 'function') pauseBgm(true);
+  if (typeof pauseTheme === 'function') pauseTheme(true);
   if (introTransitioning && !fromEnding && !fromLiftoff) return;
   if (introTransitioning) introTransitioning = false;
   clearFlightInput();
@@ -1076,6 +1161,7 @@ function goHome() {
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
   if (byId('marker')) byId('marker').hidden = true;
   if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
+  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   transitionIntroScene(() => showIntro(0));
 }
 
@@ -1141,6 +1227,7 @@ function retryMission() {
   if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
   if (start.dataset.unlocked === '1') start.textContent = '開始任務';
   stopEnding();
+  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   transitionIntroScene(() => showSearchPage(0));
 }
 
@@ -1149,6 +1236,7 @@ function finish(success) {
   clearFlightInput();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
   if (typeof pauseBgm === 'function') pauseBgm(true);
+  if (typeof pauseTheme === 'function') pauseTheme(true);
   stopEnding();
   if (byId('intro')) byId('intro').hidden = true;
   byId('overlay').hidden = false;
