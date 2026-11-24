@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1535';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1545';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -469,7 +469,10 @@ function startIntroStory() {
   }
   // Warm video/audio in this gesture so later unmuted playback is more likely to be allowed.
   if (typeof preloadLiftoffMedia === 'function') preloadLiftoffMedia();
-  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
+  if (typeof startTheme === 'function') {
+    const theme = byId('theme');
+    if (!theme || theme.paused) startTheme({ fromStart: true, fadeMs: 400 });
+  }
   transitionIntroScene(() => showIntro(1));
 }
 
@@ -492,6 +495,7 @@ const MUTE_STORAGE_KEY = 'cheungChauHeliMute';
 let liftoffActive = false;
 let liftoffFading = false;
 let liftoffTimer = null;
+let liftoffNeedsGesture = false;
 let bgmWanted = false;
 let bgmFadeTimer = null;
 
@@ -629,6 +633,48 @@ function startBgm(fadeMs) {
 
 const THEME_VOLUME = 0.55;
 let themeWanted = false;
+let themeAutoplayBlocked = false;
+let themeUnlockBound = false;
+let themeVisibilityRetried = false;
+let themeUnlockHandler = null;
+
+function openingThemeShouldPlay() {
+  if (!themeWanted) return false;
+  if (liftoffActive || (run && (run.mode === 'liftoff' || run.mode === 'flying'))) return false;
+  return true;
+}
+
+function unbindThemeGestureUnlock() {
+  if (!themeUnlockBound || !themeUnlockHandler) return;
+  if (typeof document !== 'undefined' && document.removeEventListener) {
+    for (const type of themeUnlockHandler.events) {
+      document.removeEventListener(type, themeUnlockHandler.unlock, true);
+    }
+  }
+  themeUnlockBound = false;
+  themeUnlockHandler = null;
+}
+
+function bindThemeGestureUnlock() {
+  if (themeUnlockBound) return;
+  if (typeof document === 'undefined' || !document.addEventListener) return;
+  const events = ['pointerdown', 'keydown', 'touchstart', 'click'];
+  const unlock = () => {
+    if (!openingThemeShouldPlay()) {
+      if (themeWanted === false) unbindThemeGestureUnlock();
+      return;
+    }
+    startTheme({ fromStart: false, fadeMs: 0 });
+  };
+  themeUnlockHandler = { events: events, unlock: unlock };
+  themeUnlockBound = true;
+  for (const type of events) document.addEventListener(type, unlock, true);
+}
+
+function attemptOpeningTheme() {
+  themeWanted = true;
+  startTheme({ fromStart: true, fadeMs: 0 });
+}
 
 function startTheme(options) {
   const opts = options || {};
@@ -648,12 +694,24 @@ function startTheme(options) {
     if (!themeWanted) return;
     fadeMediaVolume(theme, isMuted() ? 0 : THEME_VOLUME, opts.fadeMs || 0);
   };
-  if (result && typeof result.then === 'function') result.then(fade, () => {});
-  else fade();
+  if (result && typeof result.then === 'function') {
+    result.then(() => {
+      themeAutoplayBlocked = false;
+      unbindThemeGestureUnlock();
+      fade();
+    }, () => {
+      themeAutoplayBlocked = true;
+      bindThemeGestureUnlock();
+    });
+  } else if (theme.paused) {
+    themeAutoplayBlocked = true;
+    bindThemeGestureUnlock();
+  } else fade();
 }
 
 function pauseTheme(reset) {
   themeWanted = false;
+  unbindThemeGestureUnlock();
   const theme = byId('theme');
   if (!theme) return;
   try { if (typeof theme.pause === 'function') theme.pause(); } catch (error) {}
@@ -728,6 +786,7 @@ function completeLiftoff() {
   clearLiftoffTimer();
   liftoffActive = false;
   liftoffFading = false;
+  liftoffNeedsGesture = false;
   const video = byId('liftoff-video');
   if (video) {
     try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
@@ -771,6 +830,7 @@ function stopLiftoff(options) {
   if (immediate || !liftoffActive) {
     liftoffActive = false;
     liftoffFading = false;
+    liftoffNeedsGesture = false;
     if (video) {
       try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
       try { video.currentTime = 0; } catch (error) {}
@@ -786,8 +846,18 @@ function stopLiftoff(options) {
   startLiftoffDissolve();
 }
 
-function skipLiftoff() {
+function skipLiftoff(force) {
   if (!liftoffActive) return;
+  const video = byId('liftoff-video');
+  if (!force && liftoffNeedsGesture && video && video.paused && !(video.currentTime > 0.2)) {
+    liftoffNeedsGesture = false;
+    try { video.currentTime = 0; } catch (error) {}
+    const played = tryPlayMedia(video);
+    if (played && typeof played.then === 'function') {
+      played.then(() => { liftoffNeedsGesture = false; }, () => { liftoffNeedsGesture = true; });
+    }
+    return;
+  }
   startLiftoffDissolve();
 }
 
@@ -804,9 +874,14 @@ function onLiftoffEnded() {
   startLiftoffDissolve();
 }
 
+function isMissionOneTakeoff() {
+  // Mission 1 is next 0 (or unset before the first start). Later sections must not replay the film.
+  return !!(run && !run.explore && !run.next);
+}
+
 // Start unmuted playback in the LET'S GO gesture so autoplay policy allows sound.
+// Reduced-motion users still get the full clip; only the end dissolve may be shortened.
 function startLiftoffFromGesture() {
-  if (prefersReducedMotion()) return false;
   const video = byId('liftoff-video');
   if (!video) return false;
   preloadLiftoffMedia();
@@ -822,17 +897,14 @@ function startLiftoffFromGesture() {
     tryPlayMedia(bgm);
   }
   if (played && typeof played.then === 'function') {
-    played.then(() => {}, () => {});
+    played.then(() => { liftoffNeedsGesture = false; }, () => { liftoffNeedsGesture = true; });
+  } else if (video.paused) {
+    liftoffNeedsGesture = true;
   }
   return true;
 }
 
 function revealLiftoffOverlay() {
-  if (prefersReducedMotion()) {
-    bgmWanted = true;
-    startBgm(400);
-    return;
-  }
   const node = byId('liftoff');
   const video = byId('liftoff-video');
   if (!node || !video) {
@@ -845,7 +917,12 @@ function revealLiftoffOverlay() {
   node.classList.remove('is-fading');
   node.hidden = false;
   if (run) run.mode = 'liftoff';
-  if (video.paused) tryPlayMedia(video);
+  if (video.paused) {
+    const played = tryPlayMedia(video);
+    if (played && typeof played.then === 'function') {
+      played.then(() => {}, () => { liftoffNeedsGesture = true; });
+    }
+  }
 }
 
 function bindLiftoffAndBgm() {
@@ -889,11 +966,17 @@ function resumeGameAudio() {
     if (video && video.paused) tryPlayMedia(video);
   }
   if (bgmWanted) startBgm(200);
-  if (themeWanted) startTheme({ fadeMs: 200 });
+  if (themeWanted) {
+    // If unmuted autoplay was blocked, retry once when the tab is visible again.
+    if (themeAutoplayBlocked && themeVisibilityRetried) return;
+    if (themeAutoplayBlocked) themeVisibilityRetried = true;
+    startTheme({ fadeMs: 200 });
+  }
 }
 
 function startOrResumeSection() {
   if (introTransitioning || (introVisible() && introPhase !== 'search')) return;
+  if (liftoffActive || (run && (run.mode === 'liftoff' || run.mode === 'flying'))) return;
   if (start.textContent === '未能開始飛行') {
     window.__introPendingStart = false;
     showInitFailureOverlay();
@@ -906,15 +989,18 @@ function startOrResumeSection() {
     // starts the lift-off film in this user gesture so unmuted play() is allowed.
     // Later sections still use beginSectionFlight and keep the shared clock, but
     // they now respawn at the mission-1 start so later checkpoints are not reached immediately.
-    const firstTakeoff = !run.sessionStarted;
+    const playFilm = typeof isMissionOneTakeoff === 'function' ? isMissionOneTakeoff() : !run.sessionStarted;
     if (typeof fadeThemeOut === 'function') fadeThemeOut(500, true);
-    if (firstTakeoff && typeof startLiftoffFromGesture === 'function') startLiftoffFromGesture();
-    transitionIntroScene(() => {
+    if (playFilm && typeof startLiftoffFromGesture === 'function') startLiftoffFromGesture();
+    const begin = () => {
       if (run.sessionStarted && typeof beginSectionFlight === 'function') beginSectionFlight();
       else startFlight(false);
-      if (firstTakeoff && typeof revealLiftoffOverlay === 'function') revealLiftoffOverlay();
+      if (playFilm && typeof revealLiftoffOverlay === 'function') revealLiftoffOverlay();
       else if (typeof startBgm === 'function') startBgm(400);
-    });
+    };
+    // Show the film immediately so the 480 ms search-page veil does not hide the first moments.
+    if (playFilm) begin();
+    else transitionIntroScene(begin);
     return;
   }
   window.__introPendingStart = true;
@@ -968,7 +1054,7 @@ function handleIntroKey(event) {
     if (event.repeat) { event.preventDefault(); return true; }
     if (event.code === 'Escape' || event.code === 'Enter' || event.code === 'Space') {
       event.preventDefault();
-      skipLiftoff();
+      skipLiftoff(true);
     }
     return true;
   }
@@ -1044,6 +1130,7 @@ function bindIntroStory() {
   bindEnding();
   if (typeof bindLiftoffAndBgm === 'function') bindLiftoffAndBgm();
   showIntro(0);
+  if (typeof attemptOpeningTheme === 'function') attemptOpeningTheme();
 }
 
 function advanceFromFound() {
