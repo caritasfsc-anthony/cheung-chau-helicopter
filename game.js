@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1623';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1652';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -98,15 +98,21 @@ const MISSION_TIME_LIMIT = 600;
 const route = [
   { name: '東灣', lat: 22.211842, lon: 114.029212, source: 'http://www.hong-kong.su/tung-wan-beach/' },
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
-  { name: '東灣仔', lat: 22.2184665, lon: 114.0334993, source: 'https://www.openstreetmap.org/node/1134027647' },
+  { name: '東灣仔', lat: 22.216894575413754, lon: 114.03374428205683, agl: 50, source: 'user-adjusted 2026-11-24; near https://www.openstreetmap.org/node/1134027647' },
   { name: '觀音灣（饅頭石）', lat: 22.2087992, lon: 114.0369247, source: 'https://www.openstreetmap.org/way/596846734' }
 ].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon) }));
 const LAST_ROUTE_INDEX = route.length - 1;
+function missionAgl(point) {
+  const agl = point && Number(point.agl);
+  return Number.isFinite(agl) ? agl : MIN_AGL;
+}
+
 function missionTarget(index = run.next) {
   const point = route[index];
   // Re-sample the current rendered surface: streamed terrain may arrive mid-flight.
-  // A checkpoint centre is always 30 m AGL, not a cached sea-level altitude.
-  return { ...point, y: terrainFloor(point.x, point.z) };
+  // Checkpoint centres are AGL above that surface (default 30 m; 小螢 is 50 m),
+  // not a cached sea-level altitude. The global flight floor stays MIN_AGL.
+  return { ...point, y: surfaceHeight(point.x, point.z) + missionAgl(point) };
 }
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
