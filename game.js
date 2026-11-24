@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1529';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1535';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -549,19 +549,39 @@ function cancelBgmFade() {
   }
 }
 
+
+function clampMediaVolume(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return 0;
+  return n < 0 ? 0 : n > 1 ? 1 : n;
+}
+
+function setMediaVolume(media, value) {
+  if (!media) return 0;
+  const volume = clampMediaVolume(value);
+  try { media.volume = volume; }
+  catch (error) {
+    // Last resort if a browser rejects a clamped value; never leave an uncaught IndexSizeError.
+    try { media.volume = volume > 0.5 ? 1 : 0; } catch (ignored) {}
+  }
+  return volume;
+}
+
 function fadeMediaVolume(media, to, ms, done) {
   if (!media) { if (done) done(); return; }
-  const from = Number(media.volume) || 0;
-  const target = Math.max(0, Math.min(1, to));
-  if (prefersReducedMotion() || !ms || Math.abs(from - target) < 0.01) {
-    media.volume = target;
+  const from = clampMediaVolume(media.volume);
+  const target = clampMediaVolume(to);
+  const duration = Number(ms);
+  if (prefersReducedMotion() || !isFinite(duration) || duration <= 0 || Math.abs(from - target) < 0.01) {
+    setMediaVolume(media, target);
     if (done) done();
     return;
   }
   const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
   const tick = now => {
-    const t = Math.min(1, ((now || Date.now()) - start) / ms);
-    media.volume = from + (target - from) * t;
+    const clock = isFinite(Number(now)) ? Number(now) : Date.now();
+    const t = Math.max(0, Math.min(1, (clock - start) / duration));
+    setMediaVolume(media, from + (target - from) * t);
     if (t < 1) {
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
       else bgmFadeTimer = setTimeout(() => tick(Date.now()), 16);
@@ -585,7 +605,7 @@ function pauseBgm(reset) {
   try { if (typeof bgm.pause === 'function') bgm.pause(); } catch (error) {}
   if (reset) {
     try { bgm.currentTime = 0; } catch (error) {}
-    bgm.volume = 0;
+    setMediaVolume(bgm, 0);
   }
 }
 
@@ -595,8 +615,8 @@ function startBgm(fadeMs) {
   bgmWanted = true;
   if (typeof document !== "undefined" && document.hidden) return;
   applyMute(isMuted(), false);
-  if (bgm.volume == null || bgm.volume > BGM_VOLUME && !fadeMs) bgm.volume = BGM_VOLUME;
-  if (!fadeMs) bgm.volume = isMuted() ? 0 : BGM_VOLUME;
+  if (bgm.volume == null || bgm.volume > BGM_VOLUME && !fadeMs) setMediaVolume(bgm, BGM_VOLUME);
+  if (!fadeMs) setMediaVolume(bgm, isMuted() ? 0 : BGM_VOLUME);
   const result = tryPlayMedia(bgm);
   const fade = () => {
     if (!bgmWanted) return;
@@ -621,8 +641,8 @@ function startTheme(options) {
   if (opts.fromStart) {
     try { theme.currentTime = 0; } catch (error) {}
   }
-  if (!opts.fadeMs) theme.volume = isMuted() ? 0 : THEME_VOLUME;
-  else if (theme.paused) theme.volume = 0;
+  if (!opts.fadeMs) setMediaVolume(theme, isMuted() ? 0 : THEME_VOLUME);
+  else if (theme.paused) setMediaVolume(theme, 0);
   const result = tryPlayMedia(theme);
   const fade = () => {
     if (!themeWanted) return;
@@ -639,7 +659,7 @@ function pauseTheme(reset) {
   try { if (typeof theme.pause === 'function') theme.pause(); } catch (error) {}
   if (reset) {
     try { theme.currentTime = 0; } catch (error) {}
-    theme.volume = 0;
+    setMediaVolume(theme, 0);
   }
 }
 
@@ -652,7 +672,7 @@ function fadeThemeOut(ms, reset) {
     try { if (typeof theme.pause === 'function') theme.pause(); } catch (error) {}
     if (reset !== false) {
       try { theme.currentTime = 0; } catch (error) {}
-      theme.volume = 0;
+      setMediaVolume(theme, 0);
     }
   });
 }
@@ -712,7 +732,7 @@ function completeLiftoff() {
   if (video) {
     try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
     try { video.currentTime = 0; } catch (error) {}
-    video.volume = 1;
+    setMediaVolume(video, 1);
   }
   const node = byId('liftoff');
   if (node) {
@@ -733,10 +753,10 @@ function startLiftoffDissolve() {
   bgmWanted = true;
   const bgm = byId('bgm');
   if (bgm && !isMuted()) {
-    if (bgm.volume == null) bgm.volume = 0;
+    if (bgm.volume == null) setMediaVolume(bgm, 0);
     startBgm(LIFTOFF_FADE_S * 1000);
   } else if (bgm) {
-    bgm.volume = 0;
+    setMediaVolume(bgm, 0);
     tryPlayMedia(bgm);
   }
   const ms = prefersReducedMotion() ? 0 : LIFTOFF_FADE_S * 1000 + 80;
@@ -754,7 +774,7 @@ function stopLiftoff(options) {
     if (video) {
       try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
       try { video.currentTime = 0; } catch (error) {}
-      video.volume = 1;
+      setMediaVolume(video, 1);
     }
     const node = byId('liftoff');
     if (node) {
@@ -792,12 +812,12 @@ function startLiftoffFromGesture() {
   preloadLiftoffMedia();
   applyMute(isMuted(), false);
   try { video.currentTime = 0; } catch (error) {}
-  video.volume = isMuted() ? 0 : 1;
+  setMediaVolume(video, isMuted() ? 0 : 1);
   const played = tryPlayMedia(video);
   const bgm = byId('bgm');
   if (bgm) {
     bgm.loop = true;
-    bgm.volume = 0;
+    setMediaVolume(bgm, 0);
     applyMute(isMuted(), false);
     tryPlayMedia(bgm);
   }
