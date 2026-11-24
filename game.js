@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1545';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1610';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -257,7 +257,7 @@ const INTRO_PAGES = [
 ];
 const SECTIONS = [
   {
-    search: 'intro/s1-search.jpg', found: 'intro/s1-found.jpg',
+    search: 'intro/s1-search.jpg', found: 'intro/s1-found.mp4', foundPoster: 'intro/s1-found-poster.jpg',
     searchAlt: '尋找莫博士　出發吧～認識海岸地貌', foundAlt: '已找到莫博士',
     character: '莫博士', hintWhere: '島的東邊', hint: '與海洋相連的狹長地帶',
     bridge: [
@@ -266,7 +266,7 @@ const SECTIONS = [
     ]
   },
   {
-    search: 'intro/s2-search.jpg', found: 'intro/s2-found.jpg',
+    search: 'intro/s2-search.jpg', found: 'intro/s2-found.mp4', foundPoster: 'intro/s2-found-poster.jpg',
     searchAlt: '尋找金剛仔　出發吧～認識海岸地貌', foundAlt: '已找到莫博士同金剛仔',
     character: '金剛仔', hintWhere: '島的南邊', hint: '沿海巨大岩石附近',
     bridge: [
@@ -274,7 +274,7 @@ const SECTIONS = [
     ]
   },
   {
-    search: 'intro/s3-search.jpg', found: 'intro/s3-found.jpg',
+    search: 'intro/s3-search.jpg', found: 'intro/s3-found.mp4', foundPoster: 'intro/s3-found-poster.jpg',
     searchAlt: '尋找小螢　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔同小螢',
     character: '小螢', hintWhere: '島的東北邊', hint: '一條貫穿岩壁嘅狹窄縫隙',
     bridge: [
@@ -283,7 +283,7 @@ const SECTIONS = [
     ]
   },
   {
-    search: 'intro/s4-search.jpg', found: 'intro/s4-found.jpg',
+    search: 'intro/s4-search.jpg', found: 'intro/s4-found.mp4', foundPoster: 'intro/s4-found-poster.jpg',
     searchAlt: '尋找斑班長　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔、小螢同斑班長',
     character: '斑班長', hintWhere: '島的東南邊', hint: '海面上嘅獨立岩柱',
     bridge: []
@@ -368,6 +368,7 @@ function showIntro(step) {
   const node = byId('intro');
   const art = byId('intro-art');
   if (!node || !art) return;
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'story';
   introStep = step;
   window.__introPendingStart = false;
@@ -389,6 +390,7 @@ function showSearchPage(index) {
   const art = byId('intro-art');
   const section = SECTIONS[index];
   if (!node || !art || !section) return;
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'search';
   window.__introPendingStart = false;
   art.src = section.search + '?v=' + GAME_BUILD;
@@ -415,8 +417,10 @@ function showFoundPage(index) {
   if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   introPhase = 'found';
   window.__introPendingStart = false;
-  art.src = section.found + '?v=' + GAME_BUILD;
+  const poster = section.foundPoster || section.found;
+  art.src = poster + '?v=' + GAME_BUILD;
   art.alt = section.foundAlt;
+  node.classList.add('is-found');
   node.hidden = false;
   if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('intro-start')) byId('intro-start').hidden = true;
@@ -427,7 +431,68 @@ function showFoundPage(index) {
     byId('intro-next').setAttribute('aria-label', index >= LAST_ROUTE_INDEX ? '播放結尾片' : '下一頁');
   }
   setIntroStatus('');
+  if (typeof playFoundFilm === 'function') playFoundFilm(section);
   if (index >= LAST_ROUTE_INDEX) preloadEnding();
+}
+
+function foundFilmSrc(section) {
+  if (!section) return '';
+  return (section.found || '') + (section.found.indexOf('?') >= 0 ? '' : '?v=' + GAME_BUILD);
+}
+
+function playFoundFilm(section) {
+  const video = byId('intro-found');
+  if (!video || !section || !section.found || !/\.mp4(?:$|\?)/.test(section.found)) return;
+  // Silent found clips must never steal or duck the theme already playing here.
+  video.muted = true;
+  video.defaultMuted = true;
+  video.loop = false;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
+  if (typeof setMediaVolume === 'function') setMediaVolume(video, 0);
+  else video.volume = 0;
+  const poster = section.foundPoster ? section.foundPoster + '?v=' + GAME_BUILD : '';
+  if (poster) video.poster = poster;
+  const src = foundFilmSrc(section);
+  if (video.getAttribute('src') !== src && video.src !== src) {
+    video.src = src;
+    try { if (typeof video.load === 'function') video.load(); } catch (error) {}
+  }
+  video.hidden = false;
+  try { video.currentTime = 0; } catch (error) {}
+  tryPlayMedia(video);
+}
+
+function onFoundFilmEnded() {
+  const video = byId('intro-found');
+  if (!video || introPhase !== 'found') return;
+  try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
+  // Leave currentTime at the end so the last frame stays on screen.
+}
+
+function stopFoundFilm() {
+  const node = byId('intro');
+  if (node) node.classList.remove('is-found');
+  const video = byId('intro-found');
+  if (!video) return;
+  try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
+  try { video.currentTime = 0; } catch (error) {}
+  video.hidden = true;
+}
+
+function bindFoundFilm() {
+  const video = byId('intro-found');
+  if (!video) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.loop = false;
+  if (typeof setMediaVolume === 'function') setMediaVolume(video, 0);
+  video.addEventListener('ended', onFoundFilmEnded);
+  video.addEventListener('click', event => {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (introPhase === 'found' && !introTransitioning) introNext();
+  });
 }
 
 function showBridgePage(sectionIndex, pageIndex) {
@@ -437,6 +502,7 @@ function showBridgePage(sectionIndex, pageIndex) {
   const pages = section && section.bridge ? section.bridge : [];
   const page = pages[pageIndex];
   if (!node || !art || !page) return;
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'bridge';
   bridgeStep = pageIndex;
   window.__introPendingStart = false;
@@ -533,9 +599,15 @@ function applyMute(muted, persist) {
   const bgm = byId('bgm');
   const theme = byId('theme');
   const video = byId('liftoff-video');
+  const found = byId('intro-found');
   if (bgm) bgm.muted = !!muted;
   if (theme) theme.muted = !!muted;
   if (video) video.muted = !!muted;
+  if (found) {
+    found.muted = true;
+    found.defaultMuted = true;
+    if (typeof setMediaVolume === 'function') setMediaVolume(found, 0);
+  }
   const btn = byId('mute');
   if (btn) btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
   if (persist) writeMutedPreference(!!muted);
@@ -874,9 +946,13 @@ function onLiftoffEnded() {
   startLiftoffDissolve();
 }
 
+function shouldPlayTakeoffFilm() {
+  // Every mission title page (sections 1–4) plays the lift-off film before 3D flight.
+  return !!(run && !run.explore);
+}
+
 function isMissionOneTakeoff() {
-  // Mission 1 is next 0 (or unset before the first start). Later sections must not replay the film.
-  return !!(run && !run.explore && !run.next);
+  return shouldPlayTakeoffFilm();
 }
 
 // Start unmuted playback in the LET'S GO gesture so autoplay policy allows sound.
@@ -989,7 +1065,7 @@ function startOrResumeSection() {
     // starts the lift-off film in this user gesture so unmuted play() is allowed.
     // Later sections still use beginSectionFlight and keep the shared clock, but
     // they now respawn at the mission-1 start so later checkpoints are not reached immediately.
-    const playFilm = typeof isMissionOneTakeoff === 'function' ? isMissionOneTakeoff() : !run.sessionStarted;
+    const playFilm = typeof shouldPlayTakeoffFilm === 'function' ? shouldPlayTakeoffFilm() : !run.explore;
     if (typeof fadeThemeOut === 'function') fadeThemeOut(500, true);
     if (playFilm && typeof startLiftoffFromGesture === 'function') startLiftoffFromGesture();
     const begin = () => {
@@ -1105,10 +1181,17 @@ function bindIntroStory() {
     image.src = page.src + '?v=' + GAME_BUILD;
   });
   SECTIONS.forEach(section => {
-    [section.search, section.found].forEach(src => {
+    [section.search, section.foundPoster].forEach(src => {
+      if (!src) return;
       const image = new Image();
       image.src = src + '?v=' + GAME_BUILD;
     });
+    if (section.found && /\.mp4(?:$|\?)/.test(section.found) && typeof document !== 'undefined' && document.createElement) {
+      const warm = document.createElement('video');
+      warm.muted = true;
+      warm.preload = 'auto';
+      warm.src = section.found + '?v=' + GAME_BUILD;
+    }
     (section.bridge || []).forEach(page => {
       const image = new Image();
       image.src = page.src + '?v=' + GAME_BUILD;
@@ -1128,6 +1211,7 @@ function bindIntroStory() {
     });
   });
   bindEnding();
+  if (typeof bindFoundFilm === 'function') bindFoundFilm();
   if (typeof bindLiftoffAndBgm === 'function') bindLiftoffAndBgm();
   showIntro(0);
   if (typeof attemptOpeningTheme === 'function') attemptOpeningTheme();
@@ -1215,6 +1299,7 @@ function showEndingOverlay() {
   endingActive = true;
   run.mode = 'ending';
   clearFlightInput();
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
   if (byId('intro')) byId('intro').hidden = true;
   if (byId('overlay')) byId('overlay').hidden = true;
   const node = byId('ending');
@@ -1255,6 +1340,7 @@ function goHome() {
   const fromLiftoff = typeof liftoffVisible === 'function' && liftoffVisible();
   stopEnding();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
   if (typeof pauseBgm === 'function') pauseBgm(true);
   if (typeof pauseTheme === 'function') pauseTheme(true);
   if (introTransitioning && !fromEnding && !fromLiftoff) return;
