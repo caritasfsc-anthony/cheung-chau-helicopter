@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1731';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1737';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -2856,16 +2856,6 @@ function drawMap() {
         map.arc(...plot(target.x, target.z), 3, 0, Math.PI * 2);
         map.fill();
       }
-    }
-    if (balloon.visible && (run.mode === 'flying' || run.mode === 'quiz')) {
-      const [bx, bz] = plot(balloon.x, balloon.z);
-      map.fillStyle = '#ff4d6a';
-      map.strokeStyle = '#fff';
-      map.lineWidth = 1.4;
-      map.beginPath();
-      map.arc(bx, bz, 5, 0, Math.PI * 2);
-      map.fill();
-      map.stroke();
     }
   }
   const [x,z] = plot(craft.x,craft.z);
