@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1651';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1709';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -95,9 +95,17 @@ canvas.addEventListener('webglcontextlost', event => {
 // Named coastal objects; Tung Wan moved onto the sandy beach using LandsD imagery.
 // Nam Tam is the actual locality, NOT Po Toi's identically named bay.
 const MISSION_TIME_LIMIT = 600;
-const BALLOON_HEIGHT = 20;
-const BALLOON_REACH = 90;
+const BALLOON_HEIGHT = 160;
+const BALLOON_REACH = 150;
 const BALLOON_RESPAWN_MIN = 380;
+const BALLOON_SKY_MIN = 320;
+const BALLOON_SKY_MAX = 400;
+const BALLOON_FIRST_DIST = 3000;
+const BALLOON_NEAR = 500;
+const BALLOON_FAR = 1400;
+const QUIZ_FADE_MS = 280;
+let quizFadeTimer = null;
+let quizLeaving = false;
 const QUIZ_QUESTIONS = [
   { prompt: '波浪堆積泥沙形成嘅平緩海岸。', choices: ['海灘（Beach）', '海蝕隙（Geo）'], correct: 0 },
   { prompt: '海水沿岩石節理或裂隙不斷侵蝕擴大而成嘅狹長溝谷。', choices: ['海蝕隙（Geo）', '海蝕柱（Stack）'], correct: 0 },
@@ -1518,11 +1526,67 @@ function quizVisible() {
   return !!(node && !node.hidden);
 }
 
-function closeQuiz() {
+function quizFadeDuration() {
+  return (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : QUIZ_FADE_MS;
+}
+
+function clearQuizFade() {
+  if (quizFadeTimer) {
+    clearTimeout(quizFadeTimer);
+    quizFadeTimer = null;
+  }
+}
+
+function revealQuizOverlay(fromHidden) {
+  const root = byId('quiz');
+  if (!root) return;
+  quizLeaving = false;
+  root.hidden = false;
+  root.classList.remove('is-leaving');
+  const ms = quizFadeDuration();
+  if (!fromHidden || ms <= 0) {
+    root.classList.add('is-visible');
+    return;
+  }
+  root.classList.remove('is-visible');
+  if (root.offsetWidth) void root.offsetWidth;
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => root.classList.add('is-visible'));
+  else root.classList.add('is-visible');
+}
+
+function fadeQuizSheet() {
+  const sheet = byId('quiz-sheet');
+  const ms = quizFadeDuration();
+  if (!sheet || ms <= 0) return;
+  sheet.classList.remove('is-entering');
+  void sheet.offsetWidth;
+  sheet.classList.add('is-entering');
+}
+
+function closeQuiz(options) {
+  const fade = options && options.fade;
   const node = byId('quiz');
-  if (node) node.hidden = true;
   quizPhase = 'off';
   quizCurrent = null;
+  clearQuizFade();
+  if (!node) return;
+  const finish = () => {
+    node.hidden = true;
+    node.classList.remove('is-visible', 'is-leaving');
+    const sheet = byId('quiz-sheet');
+    if (sheet) sheet.classList.remove('is-entering');
+    quizLeaving = false;
+    quizFadeTimer = null;
+  };
+  const ms = fade && typeof setTimeout === 'function' ? quizFadeDuration() : 0;
+  if (!ms || node.hidden) {
+    finish();
+    return;
+  }
+  quizLeaving = true;
+  node.classList.add('is-leaving');
+  node.classList.remove('is-visible');
+  quizFadeTimer = setTimeout(finish, ms);
 }
 
 function hideBalloon() {
@@ -1539,30 +1603,75 @@ function resetBalloonGame() {
   hideBalloon();
 }
 
+function balloonSpawnBounds() {
+  const box = HK.MINIMAP;
+  const padLon = (box.east - box.west) * 0.08;
+  const padLat = (box.north - box.south) * 0.08;
+  const sw = HK.toXZ(box.south + padLat, box.west + padLon);
+  const ne = HK.toXZ(box.north - padLat, box.east - padLon);
+  return {
+    minX: Math.min(sw.x, ne.x), maxX: Math.max(sw.x, ne.x),
+    minZ: Math.min(sw.z, ne.z), maxZ: Math.max(sw.z, ne.z)
+  };
+}
+
+function inBalloonSpawnBox(x, z) {
+  const box = balloonSpawnBounds();
+  return x >= box.minX && x <= box.maxX && z >= box.minZ && z <= box.maxZ;
+}
+
+function balloonSkyAltitude(x, z) {
+  const surface = typeof surfaceHeight === 'function' ? surfaceHeight(x, z) : 0;
+  const sky = BALLOON_SKY_MIN + Math.random() * (BALLOON_SKY_MAX - BALLOON_SKY_MIN);
+  return Math.max(sky, surface + 220);
+}
+
+function firstBalloonSpot() {
+  const start = typeof selectedPlace === 'function' ? selectedPlace() : (HK.places && HK.places[0]);
+  const origin = HK.toXZ(start.lat, start.lon);
+  const sine = Math.sin(start.yaw), cosine = Math.cos(start.yaw);
+  for (let dist = BALLOON_FIRST_DIST; dist >= 2000; dist -= 80) {
+    const x = origin.x + sine * dist;
+    const z = origin.z + cosine * dist;
+    if (inBalloonSpawnBox(x, z)) return { x: x, y: balloonSkyAltitude(x, z), z: z };
+  }
+  const box = HK.MINIMAP;
+  const mid = HK.toXZ(box.south + (box.north - box.south) * 0.72, (box.west + box.east) / 2);
+  return { x: mid.x, y: balloonSkyAltitude(mid.x, mid.z), z: mid.z };
+}
+
+function randomBalloonSpot(avoid) {
+  const box = balloonSpawnBounds();
+  const previous = avoid || lastBalloon;
+  const preferAhead = run && run.mode === 'flying';
+  const forwardX = Math.sin(craft.yaw), forwardZ = Math.cos(craft.yaw);
+  let fallback = null;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const x = box.minX + Math.random() * (box.maxX - box.minX);
+    const z = box.minZ + Math.random() * (box.maxZ - box.minZ);
+    const candidate = { x: x, y: balloonSkyAltitude(x, z), z: z };
+    const range = Math.hypot(candidate.x - craft.x, candidate.y - craft.y, candidate.z - craft.z);
+    if (range < BALLOON_REACH + 120 || range > BALLOON_FAR + 400) continue;
+    if (previous && Math.hypot(candidate.x - previous.x, candidate.y - previous.y, candidate.z - previous.z) < BALLOON_RESPAWN_MIN) continue;
+    const ahead = (candidate.x - craft.x) * forwardX + (candidate.z - craft.z) * forwardZ;
+    if (!fallback) fallback = candidate;
+    if (preferAhead && ahead < 80 && attempt < 50) continue;
+    if (range < BALLOON_NEAR && attempt < 40) continue;
+    return candidate;
+  }
+  if (fallback) return fallback;
+  const mid = { x: (box.minX + box.maxX) / 2, z: (box.minZ + box.maxZ) / 2 };
+  mid.y = balloonSkyAltitude(mid.x, mid.z);
+  return mid;
+}
+
 function spawnBalloon(avoid) {
   if (run.explore || quizAsked >= QUIZ_QUESTIONS.length) {
     hideBalloon();
     return false;
   }
-  const box = HK.MINIMAP;
-  const padLon = (box.east - box.west) * 0.08;
-  const padLat = (box.north - box.south) * 0.08;
-  const previous = avoid || lastBalloon;
-  let chosen = null;
-  for (let attempt = 0; attempt < 48; attempt++) {
-    const lat = box.south + padLat + Math.random() * (box.north - box.south - 2 * padLat);
-    const lon = box.west + padLon + Math.random() * (box.east - box.west - 2 * padLon);
-    const xz = HK.toXZ(lat, lon);
-    const agl = 100 + Math.random() * 80;
-    const candidate = { x: xz.x, y: surfaceHeight(xz.x, xz.z) + agl, z: xz.z };
-    if (previous && Math.hypot(candidate.x - previous.x, candidate.y - previous.y, candidate.z - previous.z) < BALLOON_RESPAWN_MIN) continue;
-    chosen = candidate;
-    break;
-  }
-  if (!chosen) {
-    const xz = HK.toXZ((box.south + box.north) / 2, (box.west + box.east) / 2);
-    chosen = { x: xz.x, y: surfaceHeight(xz.x, xz.z) + 140, z: xz.z };
-  }
+  const first = !avoid && !lastBalloon && quizAsked === 0;
+  const chosen = first ? firstBalloonSpot() : randomBalloonSpot(avoid);
   balloon.x = chosen.x;
   balloon.y = chosen.y;
   balloon.z = chosen.z;
@@ -1602,17 +1711,13 @@ function openBalloonQuiz() {
   balloon.armed = false;
   clearFlightInput();
   run.mode = 'quiz';
-  if (!quizIntroSeen) {
-    quizIntroSeen = true;
-    showQuizPhase('intro');
-  } else {
-    showQuizPhase('question');
-  }
+  showQuizPhase('intro');
 }
 
 function showQuizPhase(phase) {
-  quizPhase = phase;
   const root = byId('quiz');
+  const appeared = !root || root.hidden;
+  quizPhase = phase;
   const art = byId('quiz-art');
   const question = byId('quiz-question');
   const next = byId('quiz-next');
@@ -1620,7 +1725,6 @@ function showQuizPhase(phase) {
   const first = byId('quiz-choice-0');
   const second = byId('quiz-choice-1');
   if (!root) return;
-  root.hidden = false;
   const artFor = {
     intro: 'intro/quiz-intro.jpg',
     question: 'intro/quiz-bg.jpg',
@@ -1650,30 +1754,33 @@ function showQuizPhase(phase) {
       : phase === 'correct' ? '答對了，能量已充滿。'
       : '答錯了。';
   }
+  if (appeared) revealQuizOverlay(true);
+  else fadeQuizSheet();
 }
 
 function answerQuiz(choice) {
-  if (quizPhase !== 'question' || !quizCurrent) return;
+  if (quizLeaving || quizPhase !== 'question' || !quizCurrent) return;
   const ok = choice === quizCurrent.correct;
   if (ok) refillEnergy();
   showQuizPhase(ok ? 'correct' : 'wrong');
 }
 
 function advanceQuiz() {
+  if (quizLeaving) return;
   if (quizPhase === 'intro') {
     showQuizPhase('question');
     return;
   }
   if (quizPhase !== 'correct' && quizPhase !== 'wrong') return;
   quizAsked += 1;
-  closeQuiz();
+  closeQuiz({ fade: true });
   if (run.mode === 'quiz') run.mode = 'flying';
   if (quizAsked >= QUIZ_QUESTIONS.length) hideBalloon();
   else spawnBalloon(lastBalloon);
 }
 
 function handleQuizKey(event) {
-  if (!quizVisible()) return false;
+  if (!quizVisible() || quizLeaving) return false;
   if (event.repeat) { event.preventDefault(); return true; }
   if (quizPhase === 'question') {
     if (event.code === 'Digit1' || event.code === 'Numpad1') { event.preventDefault(); answerQuiz(0); }
@@ -2200,8 +2307,8 @@ function createBalloonRenderer(gl) {
       vec3 L = normalize(vec3(0.35, 0.85, 0.4));
       vec3 baseColor = texture2D(baseColorMap, vUv).rgb * baseColorFactor;
       float ndotl = max(dot(N, L), 0.0);
-      vec3 colour = baseColor * (0.32 + 0.68 * ndotl);
-      float haze = min(0.55, 1.0-exp(-max(0.0,depth)*0.00008));
+      vec3 colour = baseColor * (0.48 + 0.62 * ndotl);
+      float haze = min(0.22, 1.0-exp(-max(0.0,depth)*0.00004));
       gl_FragColor = vec4(mix(colour, vec3(0.69,0.84,0.81), haze), 1.0);
     }`));
   gl.linkProgram(program);
@@ -2747,6 +2854,16 @@ function drawMap() {
         map.arc(...plot(target.x, target.z), 3, 0, Math.PI * 2);
         map.fill();
       }
+    }
+    if (balloon.visible && (run.mode === 'flying' || run.mode === 'quiz')) {
+      const [bx, bz] = plot(balloon.x, balloon.z);
+      map.fillStyle = '#ff4d6a';
+      map.strokeStyle = '#fff';
+      map.lineWidth = 1.4;
+      map.beginPath();
+      map.arc(bx, bz, 5, 0, Math.PI * 2);
+      map.fill();
+      map.stroke();
     }
   }
   const [x,z] = plot(craft.x,craft.z);
