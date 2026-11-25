@@ -65,6 +65,9 @@ kbd{margin-left:.4em;color:#b7d8d0}
 .hint-box .hint-label,.hint-box .hint-text{margin:0;color:#111;font-weight:900;letter-spacing:0;line-height:1.25;white-space:nowrap}
 .hint-box .hint-label{font-size:3.5cqh}
 .hint-box .hint-text{font-size:3.5cqh}
+/* Outside the yellow pill; visibility follows the existing proximity glow exactly. */
+.hint-box .target-nearby{display:none;position:absolute;top:calc(100% + 2cqh);left:1cqw;margin:0;color:#fff;font-size:4.8cqh;font-weight:900;line-height:1.2;letter-spacing:.06em;white-space:nowrap;text-shadow:0 .25cqh .35cqh #000,0 0 1cqh #000,0 0 .3cqh #000;pointer-events:none}
+.hint-box.is-near:not([hidden]) .target-nearby{display:block}
 /* Animate the COLOURS around a fixed pill, never rotate the pill silhouette.
    The cut-out keeps both rainbow layers outside the solid yellow surface. */
 @property --hint-angle{syntax:"<angle>";inherits:false;initial-value:0deg}
