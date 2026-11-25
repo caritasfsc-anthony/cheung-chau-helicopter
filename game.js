@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261124-1652';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1651';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -95,6 +95,22 @@ canvas.addEventListener('webglcontextlost', event => {
 // Named coastal objects; Tung Wan moved onto the sandy beach using LandsD imagery.
 // Nam Tam is the actual locality, NOT Po Toi's identically named bay.
 const MISSION_TIME_LIMIT = 600;
+const BALLOON_HEIGHT = 20;
+const BALLOON_REACH = 90;
+const BALLOON_RESPAWN_MIN = 380;
+const QUIZ_QUESTIONS = [
+  { prompt: '波浪堆積泥沙形成嘅平緩海岸。', choices: ['海灘（Beach）', '海蝕隙（Geo）'], correct: 0 },
+  { prompt: '海水沿岩石節理或裂隙不斷侵蝕擴大而成嘅狹長溝谷。', choices: ['海蝕隙（Geo）', '海蝕柱（Stack）'], correct: 0 },
+  { prompt: '岩壁經波浪持續侵蝕演化出嘅洞穴', choices: ['海灘（Beach）', '海蝕穴（Sea cave）'], correct: 1 },
+  { prompt: '波浪侵蝕形成嘅垂直峭壁。', choices: ['海蝕隙（Geo）', '海崖（Sea cliff）'], correct: 1 }
+];
+const balloon = { x: 0, y: 0, z: 0, yaw: 0, visible: false, armed: false };
+let quizDeck = [];
+let quizAsked = 0;
+let quizPhase = 'off';
+let quizCurrent = null;
+let quizIntroSeen = false;
+let lastBalloon = null;
 const route = [
   { name: '東灣', lat: 22.211842, lon: 114.029212, source: 'http://www.hong-kong.su/tung-wan-beach/' },
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
@@ -124,6 +140,8 @@ let bakedLand = null;
 const atlasTextures = [];
 let heliRenderer = null;
 let heliAssetState = 'waiting';
+let balloonRenderer = null;
+let balloonAssetState = 'waiting';
 const lazyScripts = {};
 function loadGameScript(file) {
   if (lazyScripts[file]) return lazyScripts[file];
@@ -1132,6 +1150,7 @@ function introBack() {
 }
 
 function handleIntroKey(event) {
+  if (typeof handleQuizKey === 'function' && handleQuizKey(event)) return true;
   if (typeof liftoffVisible === 'function' && liftoffVisible()) {
     if (event.repeat) { event.preventDefault(); return true; }
     if (event.code === 'Escape' || event.code === 'Enter' || event.code === 'Space') {
@@ -1219,6 +1238,7 @@ function bindIntroStory() {
   bindEnding();
   if (typeof bindFoundFilm === 'function') bindFoundFilm();
   if (typeof bindLiftoffAndBgm === 'function') bindLiftoffAndBgm();
+  if (typeof bindBalloonQuiz === 'function') bindBalloonQuiz();
   showIntro(0);
   if (typeof attemptOpeningTheme === 'function') attemptOpeningTheme();
 }
@@ -1341,7 +1361,9 @@ function bindEnding() {
   }
 }
 
+
 function goHome() {
+  if (typeof resetBalloonGame === 'function') resetBalloonGame();
   const fromEnding = endingVisible();
   const fromLiftoff = typeof liftoffVisible === 'function' && liftoffVisible();
   stopEnding();
@@ -1368,6 +1390,7 @@ function hideFlightOverlays() {
   if (byId('intro')) byId('intro').hidden = true;
   if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('ending')) byId('ending').hidden = true;
+  if (typeof closeQuiz === 'function') closeQuiz();
   // The lift-off film is managed separately so a scene cut does not hide it mid-play.
 }
 
@@ -1390,6 +1413,7 @@ function beginSectionFlight() {
   clearFlightInput();
   hideFlightOverlays();
   if (window.__loadHeli) window.__loadHeli();
+  if (typeof prepareBalloonForFlight === 'function') prepareBalloonForFlight(first);
   start.blur();
 }
 
@@ -1405,11 +1429,14 @@ function startFlight(explore = false) {
   clearFlightInput();
   hideFlightOverlays();
   if (window.__loadHeli) window.__loadHeli();
+  if (typeof resetBalloonGame === 'function') resetBalloonGame();
+  if (typeof prepareBalloonForFlight === 'function') prepareBalloonForFlight(true);
   start.blur();
   if (free && typeof startBgm === 'function') { bgmWanted = true; startBgm(400); }
 }
 
 function retryMission() {
+  if (typeof resetBalloonGame === 'function') resetBalloonGame();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
   if (typeof pauseBgm === 'function') pauseBgm(true);
   if (introTransitioning) return;
@@ -1431,6 +1458,8 @@ function retryMission() {
 }
 
 function finish(success) {
+  if (typeof closeQuiz === 'function') closeQuiz();
+  if (typeof hideBalloon === 'function') hideBalloon();
   run.mode = 'ended';
   clearFlightInput();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
@@ -1452,6 +1481,240 @@ function finish(success) {
   if (byId('title-home')) byId('title-home').hidden = false;
   start.focus();
 }
+
+function shuffleQuizDeck() {
+  const order = QUIZ_QUESTIONS.map((_, index) => index);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const swap = order[i];
+    order[i] = order[j];
+    order[j] = swap;
+  }
+  return order;
+}
+
+function energyRemaining() {
+  if (run.explore) return 1;
+  return Math.max(0, 1 - run.time / MISSION_TIME_LIMIT);
+}
+
+function refillEnergy() {
+  run.time = 0;
+}
+
+function updateEnergyBar() {
+  const track = byId('energy-track');
+  if (!track) return;
+  const frac = energyRemaining();
+  track.setAttribute('aria-valuenow', String(Math.round(frac * 100)));
+  const cells = track.querySelectorAll('i');
+  cells.forEach((cell, index) => {
+    cell.classList.toggle('is-on', (index + 0.5) / Math.max(1, cells.length) <= frac);
+  });
+}
+
+function quizVisible() {
+  const node = byId('quiz');
+  return !!(node && !node.hidden);
+}
+
+function closeQuiz() {
+  const node = byId('quiz');
+  if (node) node.hidden = true;
+  quizPhase = 'off';
+  quizCurrent = null;
+}
+
+function hideBalloon() {
+  balloon.visible = false;
+  balloon.armed = false;
+}
+
+function resetBalloonGame() {
+  closeQuiz();
+  quizAsked = 0;
+  quizDeck = shuffleQuizDeck();
+  quizIntroSeen = false;
+  lastBalloon = null;
+  hideBalloon();
+}
+
+function spawnBalloon(avoid) {
+  if (run.explore || quizAsked >= QUIZ_QUESTIONS.length) {
+    hideBalloon();
+    return false;
+  }
+  const box = HK.MINIMAP;
+  const padLon = (box.east - box.west) * 0.08;
+  const padLat = (box.north - box.south) * 0.08;
+  const previous = avoid || lastBalloon;
+  let chosen = null;
+  for (let attempt = 0; attempt < 48; attempt++) {
+    const lat = box.south + padLat + Math.random() * (box.north - box.south - 2 * padLat);
+    const lon = box.west + padLon + Math.random() * (box.east - box.west - 2 * padLon);
+    const xz = HK.toXZ(lat, lon);
+    const agl = 100 + Math.random() * 80;
+    const candidate = { x: xz.x, y: surfaceHeight(xz.x, xz.z) + agl, z: xz.z };
+    if (previous && Math.hypot(candidate.x - previous.x, candidate.y - previous.y, candidate.z - previous.z) < BALLOON_RESPAWN_MIN) continue;
+    chosen = candidate;
+    break;
+  }
+  if (!chosen) {
+    const xz = HK.toXZ((box.south + box.north) / 2, (box.west + box.east) / 2);
+    chosen = { x: xz.x, y: surfaceHeight(xz.x, xz.z) + 140, z: xz.z };
+  }
+  balloon.x = chosen.x;
+  balloon.y = chosen.y;
+  balloon.z = chosen.z;
+  balloon.visible = true;
+  balloon.armed = true;
+  lastBalloon = { x: chosen.x, y: chosen.y, z: chosen.z };
+  return true;
+}
+
+function prepareBalloonForFlight() {
+  if (window.__loadBalloon) window.__loadBalloon();
+  if (run.explore) {
+    hideBalloon();
+    return;
+  }
+  if (!quizDeck.length) quizDeck = shuffleQuizDeck();
+  if (quizAsked >= QUIZ_QUESTIONS.length) {
+    hideBalloon();
+    return;
+  }
+  if (!balloon.visible) spawnBalloon();
+}
+
+function balloonRange() {
+  return Math.hypot(craft.x - balloon.x, craft.y - balloon.y, craft.z - balloon.z);
+}
+
+function maybeTriggerBalloonQuiz() {
+  if (run.mode !== 'flying' || run.explore || !balloon.visible || !balloon.armed) return;
+  if (balloonRange() <= BALLOON_REACH) openBalloonQuiz();
+}
+
+function openBalloonQuiz() {
+  if (quizAsked >= QUIZ_QUESTIONS.length) return;
+  if (!quizDeck.length) quizDeck = shuffleQuizDeck();
+  quizCurrent = QUIZ_QUESTIONS[quizDeck[quizAsked]];
+  balloon.armed = false;
+  clearFlightInput();
+  run.mode = 'quiz';
+  if (!quizIntroSeen) {
+    quizIntroSeen = true;
+    showQuizPhase('intro');
+  } else {
+    showQuizPhase('question');
+  }
+}
+
+function showQuizPhase(phase) {
+  quizPhase = phase;
+  const root = byId('quiz');
+  const art = byId('quiz-art');
+  const question = byId('quiz-question');
+  const next = byId('quiz-next');
+  const prompt = byId('quiz-prompt');
+  const first = byId('quiz-choice-0');
+  const second = byId('quiz-choice-1');
+  if (!root) return;
+  root.hidden = false;
+  const artFor = {
+    intro: 'intro/quiz-intro.jpg',
+    question: 'intro/quiz-bg.jpg',
+    correct: 'intro/quiz-correct.jpg',
+    wrong: 'intro/quiz-wrong.jpg'
+  };
+  if (art) {
+    art.src = (artFor[phase] || artFor.question) + '?v=' + GAME_BUILD;
+    art.alt = phase === 'intro' ? '地理考察加油站' : phase === 'correct' ? '答對了' : phase === 'wrong' ? '答錯了' : '地理問題';
+  }
+  if (question) question.hidden = phase !== 'question';
+  if (next) {
+    next.hidden = phase === 'question';
+    next.setAttribute('aria-label', '下一頁');
+  }
+  if (phase === 'question' && quizCurrent) {
+    if (prompt) prompt.textContent = quizCurrent.prompt;
+    if (first) first.textContent = quizCurrent.choices[0];
+    if (second) second.textContent = quizCurrent.choices[1];
+  }
+  const status = byId('quiz-status');
+  if (status) {
+    status.hidden = false;
+    status.textContent = phase === 'intro'
+      ? '考考你，答對問題會為你加油。'
+      : phase === 'question' ? '請選擇答案。'
+      : phase === 'correct' ? '答對了，能量已充滿。'
+      : '答錯了。';
+  }
+}
+
+function answerQuiz(choice) {
+  if (quizPhase !== 'question' || !quizCurrent) return;
+  const ok = choice === quizCurrent.correct;
+  if (ok) refillEnergy();
+  showQuizPhase(ok ? 'correct' : 'wrong');
+}
+
+function advanceQuiz() {
+  if (quizPhase === 'intro') {
+    showQuizPhase('question');
+    return;
+  }
+  if (quizPhase !== 'correct' && quizPhase !== 'wrong') return;
+  quizAsked += 1;
+  closeQuiz();
+  if (run.mode === 'quiz') run.mode = 'flying';
+  if (quizAsked >= QUIZ_QUESTIONS.length) hideBalloon();
+  else spawnBalloon(lastBalloon);
+}
+
+function handleQuizKey(event) {
+  if (!quizVisible()) return false;
+  if (event.repeat) { event.preventDefault(); return true; }
+  if (quizPhase === 'question') {
+    if (event.code === 'Digit1' || event.code === 'Numpad1') { event.preventDefault(); answerQuiz(0); }
+    if (event.code === 'Digit2' || event.code === 'Numpad2') { event.preventDefault(); answerQuiz(1); }
+    return true;
+  }
+  if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight') {
+    event.preventDefault();
+    advanceQuiz();
+  }
+  return true;
+}
+
+function bindBalloonQuiz() {
+  ['intro/quiz-intro.jpg', 'intro/quiz-bg.jpg', 'intro/quiz-correct.jpg', 'intro/quiz-wrong.jpg'].forEach(src => {
+    const image = new Image();
+    image.src = src + '?v=' + GAME_BUILD;
+  });
+  const next = byId('quiz-next');
+  if (next) next.addEventListener('click', advanceQuiz);
+  const first = byId('quiz-choice-0');
+  const second = byId('quiz-choice-1');
+  if (first) first.addEventListener('click', () => answerQuiz(0));
+  if (second) second.addEventListener('click', () => answerQuiz(1));
+}
+
+function balloonBasis(yaw) {
+  const sine = Math.sin(yaw), cosine = Math.cos(yaw);
+  return new Float32Array([
+    cosine, 0, -sine,
+    0, 1, 0,
+    sine, 0, cosine
+  ]);
+}
+
+function faceBalloonToCamera(camera) {
+  if (!camera || !camera.eye) return;
+  balloon.yaw = Math.atan2(camera.eye[0] - balloon.x, camera.eye[2] - balloon.z);
+}
+
+
 
 function update(dt) {
   if (run.mode !== 'flying') return;
@@ -1479,6 +1742,7 @@ function update(dt) {
     const target = missionTarget();
     const arrived = Math.hypot(craft.x - target.x, craft.z - target.z) <= 70;
     if (arrived) arriveAtStation();
+    else if (typeof maybeTriggerBalloonQuiz === 'function') maybeTriggerBalloonQuiz();
   }
 }
 
@@ -1890,6 +2154,157 @@ function createHeliRenderer(gl) {
   };
 }
 
+function createBalloonRenderer(gl) {
+  const model = window.BALLOON_MODEL;
+  if (!model) throw Error('Balloon model data missing');
+  const height = model.bounds && model.bounds.max ? (model.bounds.max[1] - model.bounds.min[1]) : 3.27;
+  const visualScale = BALLOON_HEIGHT / height;
+  const vary = (gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) || {}).precision
+    ? 'highp' : 'mediump';
+  const program = gl.createProgram();
+  gl.attachShader(program, shader(gl.VERTEX_SHADER, `
+    attribute vec3 position;
+    attribute vec3 normal;
+    attribute vec2 uv;
+    uniform vec3 eye, rightAxis, upAxis, forwardAxis, modelPos;
+    uniform vec2 lens;
+    uniform mat3 modelBasis;
+    uniform float visualScale;
+    varying ${vary} vec3 vWorld, vNormal;
+    varying ${vary} vec2 vUv;
+    varying ${vary} float depth;
+    void main() {
+      vec3 local = modelBasis * (position * visualScale);
+      vec3 world = modelPos + local;
+      vec3 delta = world - eye;
+      depth = dot(delta, forwardAxis);
+      gl_Position = vec4(dot(delta,rightAxis)*lens.x, dot(delta,upAxis)*lens.y,
+                         depth*1.00005-0.4, depth);
+      vWorld = world;
+      vNormal = modelBasis * normal;
+      vUv = uv;
+    }`));
+  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    #else
+    precision mediump float;
+    #endif
+    varying ${vary} vec3 vWorld, vNormal;
+    varying ${vary} vec2 vUv;
+    varying ${vary} float depth;
+    uniform sampler2D baseColorMap;
+    uniform vec3 eye, baseColorFactor;
+    void main() {
+      vec3 N = normalize(vNormal);
+      vec3 L = normalize(vec3(0.35, 0.85, 0.4));
+      vec3 baseColor = texture2D(baseColorMap, vUv).rgb * baseColorFactor;
+      float ndotl = max(dot(N, L), 0.0);
+      vec3 colour = baseColor * (0.32 + 0.68 * ndotl);
+      float haze = min(0.55, 1.0-exp(-max(0.0,depth)*0.00008));
+      gl_FragColor = vec4(mix(colour, vec3(0.69,0.84,0.81), haze), 1.0);
+    }`));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
+
+  const positions = new Float32Array(decodeBuffer(model.positions));
+  const normals = new Float32Array(decodeBuffer(model.normals));
+  const uvs = new Float32Array(decodeBuffer(model.uvs));
+  const indices = new Uint16Array(decodeBuffer(model.indices));
+  if (positions.length !== model.vertexCount * 3 || indices.length !== model.indexCount) {
+    throw Error('Balloon model buffer size mismatch');
+  }
+  const packed = new Float32Array(indices.length * 8);
+  let w = 0;
+  for (let t = 0; t < indices.length; t++) {
+    const i = indices[t];
+    packed[w++] = positions[i * 3];
+    packed[w++] = positions[i * 3 + 1];
+    packed[w++] = positions[i * 3 + 2];
+    packed[w++] = normals[i * 3];
+    packed[w++] = normals[i * 3 + 1];
+    packed[w++] = normals[i * 3 + 2];
+    packed[w++] = uvs[i * 2];
+    packed[w++] = uvs[i * 2 + 1];
+  }
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, packed, gl.STATIC_DRAW);
+  const uniforms = gameEntries(
+    ['eye','rightAxis','upAxis','forwardAxis','lens','modelPos','modelBasis','visualScale','baseColorMap','baseColorFactor']
+      .map(name => [name, gl.getUniformLocation(program, name)])
+  );
+  const attribs = {
+    position: gl.getAttribLocation(program, 'position'),
+    normal: gl.getAttribLocation(program, 'normal'),
+    uv: gl.getAttribLocation(program, 'uv')
+  };
+  const withBuild = url => !url || String(url).indexOf('?') >= 0 ? url : url + '?v=' + GAME_BUILD;
+  const maps = {};
+  const readyList = [];
+  (model.ranges || []).forEach(range => {
+    if (range.texture && !maps[range.texture]) {
+      maps[range.texture] = loadTexture(gl, withBuild(range.texture));
+      readyList.push(maps[range.texture].ready);
+    }
+  });
+  const white = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, white);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+  const ready = Promise.all(readyList.length ? readyList : [Promise.resolve(true)]);
+  const stride = 32;
+  return {
+    ready,
+    debug: () => ({
+      visualScale, height: BALLOON_HEIGHT, visible: balloon.visible, armed: balloon.armed,
+      position: { x: balloon.x, y: balloon.y, z: balloon.z },
+      ranges: (model.ranges || []).map(range => ({ ...range }))
+    }),
+    draw(camera, seconds) {
+      if (!balloon.visible) return;
+      faceBalloonToCamera(camera);
+      const bob = Math.sin((seconds || 0) * 1.15) * 1.15;
+      const sway = Math.sin((seconds || 0) * 0.7) * 0.04;
+      gl.useProgram(program);
+      gl.disable(gl.CULL_FACE);
+      gl.uniform3fv(uniforms.eye, camera.eye);
+      gl.uniform3fv(uniforms.rightAxis, camera.right);
+      gl.uniform3fv(uniforms.upAxis, camera.up);
+      gl.uniform3fv(uniforms.forwardAxis, camera.forward);
+      gl.uniform2f(uniforms.lens, camera.fx, camera.fy);
+      gl.uniform3f(uniforms.modelPos, balloon.x, balloon.y + bob, balloon.z);
+      gl.uniformMatrix3fv(uniforms.modelBasis, false, balloonBasis(balloon.yaw + sway));
+      gl.uniform1f(uniforms.visualScale, visualScale);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(attribs.position);
+      gl.enableVertexAttribArray(attribs.normal);
+      gl.enableVertexAttribArray(attribs.uv);
+      gl.vertexAttribPointer(attribs.position, 3, gl.FLOAT, false, stride, 0);
+      gl.vertexAttribPointer(attribs.normal, 3, gl.FLOAT, false, stride, 12);
+      gl.vertexAttribPointer(attribs.uv, 2, gl.FLOAT, false, stride, 24);
+      const ranges = model.ranges || [{ first: 0, count: indices.length, color: [1, 1, 1] }];
+      for (let i = 0; i < ranges.length; i++) {
+        const range = ranges[i];
+        const color = range.color || [1, 1, 1];
+        gl.uniform3f(uniforms.baseColorFactor, color[0], color[1], color[2]);
+        const map = range.texture && maps[range.texture];
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, map ? map.texture : white);
+        gl.uniform1i(uniforms.baseColorMap, 2);
+        gl.drawArrays(gl.TRIANGLES, range.first, range.count);
+      }
+      gl.disableVertexAttribArray(attribs.normal);
+      gl.disableVertexAttribArray(attribs.uv);
+    }
+  };
+}
+
+
+
 function initializeRenderer() {
   if (!gl) throw Error('WebGL unavailable');
   if (typeof HK === 'undefined') throw Error('hk-map.js did not load (HK missing)');
@@ -2004,8 +2419,10 @@ function initializeRenderer() {
     options: { ...renderOptions }, objects: { ...lastObjectCounts },
     frame: { ...lastRenderFrame }, craft: { ...craft },
     mission: { timeLimit: MISSION_TIME_LIMIT, next: run.next, route: route.map(p => ({ ...p })) },
-    startup: window.__startupInfo, lowPower: LOW_POWER, heliAssetState,
+    startup: window.__startupInfo, lowPower: LOW_POWER, heliAssetState, balloonAssetState,
     rotors: heliRenderer && heliRenderer.debug ? heliRenderer.debug() : null,
+    balloon: balloonRenderer && balloonRenderer.debug ? balloonRenderer.debug() : null,
+    quiz: { asked: quizAsked, phase: quizPhase, visible: balloon.visible, armed: balloon.armed },
     map: tiles.debugSnapshot()
   });
   if (byId('height-mode')) {
@@ -2039,15 +2456,39 @@ function initializeRenderer() {
     });
   }
   window.__loadHeli = startHeliLoad;
+  function startBalloonLoad() {
+    if (balloonAssetState === 'loading' || balloonRenderer) return;
+    balloonAssetState = 'loading';
+    const build = () => {
+      try {
+        balloonRenderer = createBalloonRenderer(gl);
+        balloonAssetState = 'texturing';
+        balloonRenderer.ready.then(flags => {
+          balloonAssetState = flags.every(Boolean) ? 'ready' : 'plain';
+        }).catch(() => { balloonAssetState = 'plain'; });
+      } catch (error) {
+        balloonAssetState = 'error';
+        window.__balloonInitError = reportInitError('balloon-model', error);
+      }
+    };
+    if (window.BALLOON_MODEL) build();
+    else loadGameScript('balloon-model.js').then(build).catch(error => {
+      balloonAssetState = 'error';
+      window.__balloonInitError = reportInitError('balloon-model-download', error);
+    });
+  }
+  window.__loadBalloon = startBalloonLoad;
   // Keep already-cached model support for offline/test embedding. HTTP bootstrap
   // doesn't request it until flight begins, so it cannot block the Start button.
   if (window.HELI_MODEL) startHeliLoad();
+  if (window.BALLOON_MODEL) startBalloonLoad();
   enableFlightStart();
   if (byId('map-retry')) byId('map-retry').addEventListener('click', () => {
     offlineDataRetryAfter = 0;
     tiles.retry();
     tiles.requestAround(craft.x, craft.z);
     if (heliAssetState === 'error') startHeliLoad();
+    if (balloonAssetState === 'error') startBalloonLoad();
   });
   if (byId('height-mode')) byId('height-mode').addEventListener('change', () => {
     if (heightMode() === 'baked') loadOfflineData().then(() => tiles.rebuildAllMeshes()).catch(error => appendBriefing(error.message));
@@ -2147,9 +2588,11 @@ function initializeRenderer() {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geometry), gl.DYNAMIC_DRAW);
     if (!renderOptions.hideObjects) draw(objects, geometry.length);
     if (heliRenderer && !renderOptions.hideDrone) heliRenderer.draw(camera, seconds);
+    if (typeof balloonRenderer !== 'undefined' && balloonRenderer) balloonRenderer.draw(camera, seconds);
     lastRenderFrame = {
       referenceVisible, mapVisible: !renderOptions.hideMap, offlineLandscape: offline && bakedReady && !renderOptions.hideMap,
       objectsDrawn: !renderOptions.hideObjects, droneDrawn: !!heliRenderer && !renderOptions.hideDrone,
+      balloonDrawn: typeof balloonRenderer !== 'undefined' && !!balloonRenderer && typeof balloon !== 'undefined' && balloon.visible,
       objectVertices: renderOptions.hideObjects ? 0 : geometry.length / 6,
       eye: camera.eye.slice(), forward: camera.forward.slice()
     };
@@ -2373,7 +2816,9 @@ function drawHud(camera, seconds) {
   byId('speed').textContent = Math.round(Math.hypot(craft.vx,craft.vz)*3.6);
   const heading = (Math.round(craft.yaw*180/Math.PI)%360+360)%360;
   byId('heading').textContent = String(heading).padStart(3,'0');
-  byId('battery').textContent = run.explore ? '—' : Math.max(0,100-Math.floor(run.time / MISSION_TIME_LIMIT * 100));
+  if (typeof updateEnergyBar === 'function') updateEnergyBar();
+  const battery = byId('battery');
+  if (battery) battery.textContent = run.explore ? '—' : Math.max(0,100-Math.floor(run.time / MISSION_TIME_LIMIT * 100));
   items.forEach((li,index) => {
     li.classList.toggle('current',index===run.next);
     li.classList.toggle('done',index<run.next);
