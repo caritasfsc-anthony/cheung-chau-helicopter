@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261125-1754';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261126-1717';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -2030,10 +2030,18 @@ function loadTexture(gl, url) {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
         const code = gl.getError();
         if (code !== gl.NO_ERROR) throw Error('Texture upload failed (' + code + '): ' + url);
-        try {
-          gl.generateMipmap(gl.TEXTURE_2D);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        } catch (mipError) {
+        // WebGL1 treats non-power-of-two mipmaps as incomplete; generateMipmap
+        // sets a GL error rather than throwing, and LINEAR_MIPMAP_LINEAR then
+        // samples black on desktop GPUs. Phones often auto-downscale first.
+        const pot = n => n > 0 && (n & (n - 1)) === 0;
+        if (pot(source.width) && pot(source.height)) {
+          try {
+            gl.generateMipmap(gl.TEXTURE_2D);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          } catch (mipError) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          }
+        } else {
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
         finish(true);
