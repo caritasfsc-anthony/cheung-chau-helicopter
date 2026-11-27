@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261126-1717';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1258';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -106,11 +106,32 @@ const BALLOON_FAR = 1400;
 const QUIZ_FADE_MS = 280;
 let quizFadeTimer = null;
 let quizLeaving = false;
-const QUIZ_QUESTIONS = [
-  { prompt: '波浪堆積泥沙形成嘅平緩海岸。', choices: ['海灘（Beach）', '海蝕隙（Geo）'], correct: 0 },
-  { prompt: '海水沿岩石節理或裂隙不斷侵蝕擴大而成嘅狹長溝谷。', choices: ['海蝕隙（Geo）', '海蝕柱（Stack）'], correct: 0 },
-  { prompt: '岩壁經波浪持續侵蝕演化出嘅洞穴', choices: ['海灘（Beach）', '海蝕穴（Sea cave）'], correct: 1 },
-  { prompt: '波浪侵蝕形成嘅垂直峭壁。', choices: ['海蝕隙（Geo）', '海崖（Sea cliff）'], correct: 1 }
+const CHAPTER_GOAL = 3;
+const CHAPTER_QUIZZES = [
+  [
+    { prompt: '海岸考察前查閱潮汐預報表最主要原因是甚麼？', choices: ['A. 避免正午高溫導致中暑', 'B. 了解漲潮和退潮的時間，確保考察的安全性', 'C. 配合渡輪班次以節省時間', 'D. 建設性波浪只在清晨出現'], correct: 1 },
+    { prompt: '下列哪項正確排列海灘剖面(beach profile)由外海至陸地方向的各個地帶？', choices: ['A. 後灘 → 前灘 → 近岸 → 濱外', 'B. 濱外 → 近岸 → 前灘 → 後灘', 'C. 近岸 → 濱外 → 後灘 → 前灘', 'D. 前灘 → 後灘 → 濱外 → 近岸'], correct: 1 },
+    { prompt: '前灘的沉積物較幼細，以砂粒為主，而後灘多見卵石。造成這種沉積物分選的主要機制是甚麼？', choices: ['A. 能量較強的沖流可將卵石推向後灘，較弱的回流把較幼細的沉積物帶回前灘', 'B. 沿岸漂移只搬運粗礫至海灣兩側', 'C. 後灘風化作用較強，使岩石碎裂成卵石', 'D. 濱外區域的潮差較後灘大，令前灘的粗礫被帶走'], correct: 0 },
+    { prompt: '為甚麼接近岬角(headland)的海灘，其沉積物通常較粗？', choices: ['A. 岬角附近河流帶來較粗的沉積物', 'B. 波浪折射令岬角能量較為集中，較幼的沉積物被帶走，留下較粗的沉積物', 'C. 岬角的離岸風吹走幼細的沉積物', 'D. 岬角岩石的抗蝕力低，容易受風化而崩塌成石塊'], correct: 1 },
+    { prompt: '下列哪項關於「建設性波浪」（Constructive waves）的描述是正確的？', choices: ['A. 波高(wave height)較高，波長(wave length)較短', 'B. 波浪頻率高', 'C. 沖流(swash)強於回流(backwash)', 'D. 常見於強風暴吹襲期間'], correct: 2 },
+    { prompt: '海浪攜帶大量搬運物，不斷撞擊及磨擦海崖底部，使岩石逐漸被削走。這種侵蝕作用稱為甚麼？', choices: ['A. 磨蝕作用（Abrasion）', 'B. 磨耗作用（Attrition）', 'C. 溶蝕作用（Solution）', 'D. 水力作用（Hydraulic action）'], correct: 0 },
+    { prompt: '長洲的東岸沒有遮擋，風浪特別強勁。決定波浪能量的最主要因素不包括哪項？', choices: ['A. 吹程（Fetch）的長短', 'B. 風速與持續時間', 'C. 海水鹽度高低', 'D. 近岸海底水深變化'], correct: 2 }
+  ],
+  [
+    { prompt: '哪組波浪與侵蝕作用最有利於海崖(sea cliff)及海蝕凹地(notch)形成？', choices: ['A. 建設性波浪；水力作用與溶蝕作用', 'B. 建設性波浪；磨蝕作用與磨耗作用', 'C. 破壞性波浪；水力作用與磨蝕作用', 'D. 破壞性波浪；沿岸漂移與沉積作用'], correct: 2 },
+    { prompt: '下列哪項正確排列「浪蝕平台」(wave-cut platform)的形成次序？①凹地頂崩塌成崖 ②形成海蝕凹地 ③波浪沖走岩屑令平台變闊', choices: ['A. ① → ② → ③', 'B. ② → ① → ③', 'C. ② → ③ → ①', 'D. ③ → ② → ①'], correct: 1 },
+    { prompt: '一般浪蝕平台漲潮時會被淹沒，但長洲南氹的浪蝕平台(wave-cut platform)在漲潮時仍露出水面，主要原因是？', choices: ['A. 全球海平面急劇下降', 'B. 該處曾經歷地殼抬升', 'C. 大規模火山噴發，熔岩在該處堆積', 'D. 附近河口的沉積物在平台上大量淤積'], correct: 1 }
+  ],
+  [
+    { prompt: '海蝕隙(Geo)的形成與哪項岩石特徵關係最密切？', choices: ['A. 岩石礦物成分均勻', 'B. 岩石存在天然裂縫或弱線', 'C. 岩石抗蝕力極高', 'D. 岩石表面覆蓋著厚層土壤'], correct: 1 },
+    { prompt: '「海蝕隙」（Geo）的外觀形態主要是怎樣的？', choices: ['A. 連接兩個島嶼的狹長沙堤', 'B. 海岸岩壁上一條狹窄而深長的岩石縫隙', 'C. 海面上獨立矗立的圓形石柱', 'D. 在岬角形成拱形橋狀或隧道狀通道'], correct: 1 },
+    { prompt: '若長洲北角咀的「海蝕隙」（Geo）繼續受到海浪強烈侵蝕並進一步擴展，它有機會發展成哪種地貌？', choices: ['A. 連島沙洲（Tombolo）', 'B. 更寬闊的海蝕穴（Sea cave）', 'C. 沙嘴（Spit）', 'D. 潟湖（Lagoon）'], correct: 1 }
+  ],
+  [
+    { prompt: '在岬角正面及背面的海蝕穴發展成海蝕柱的次序是？①拱頂倒塌 ②兩邊海蝕穴不斷被波浪侵蝕 ③兩邊海蝕穴貫穿成拱', choices: ['A. ① → ② → ③', 'B. ② → ① → ③', 'C. ② → ③ → ①', 'D. ③ → ② → ①'], correct: 2 },
+    { prompt: '「海蝕柱」（Stack）的外觀形態主要是怎樣的？', choices: ['A. 連接兩個島嶼的狹長沙堤', 'B. 矗立在海面上的獨立岩石柱', 'C. 岩壁底部向內凹陷的深洞', 'D. 在岬角形成拱形橋狀或隧道狀通道'], correct: 1 },
+    { prompt: '「海蝕柱」（Stack）是由下列哪一種海岸地貌的頂部倒塌而直接演變而成的？', choices: ['A. 海崖（Sea cliff）', 'B. 浪蝕平台（Wave-cut platform）', 'C. 海蝕拱（Sea arch）', 'D. 沙嘴（Spit）'], correct: 2 }
+  ]
 ];
 const balloon = { x: 0, y: 0, z: 0, yaw: 0, visible: false, armed: false };
 let quizDeck = [];
@@ -119,6 +140,33 @@ let quizPhase = 'off';
 let quizCurrent = null;
 let quizIntroSeen = false;
 let lastBalloon = null;
+let quizChapter = 0;
+let chapterProgress = emptyChapterProgress();
+
+function emptyChapterProgress() {
+  return (typeof CHAPTER_QUIZZES !== 'undefined' ? CHAPTER_QUIZZES : [[], [], [], []]).map(() => ({ correct: 0, solved: [] }));
+}
+
+function chapterUnlocked(index) {
+  if (index == null) index = run && run.next;
+  if (run && run.explore) return true;
+  const row = chapterProgress[index];
+  return !!(row && row.correct >= CHAPTER_GOAL);
+}
+
+function chapterQuestions(index) {
+  return CHAPTER_QUIZZES[index] || [];
+}
+
+function unsolvedQuestionIndexes(index) {
+  const row = chapterProgress[index] || { solved: [] };
+  return chapterQuestions(index).map((_, i) => i).filter(i => row.solved.indexOf(i) < 0);
+}
+
+function chapterHasQuiz(index) {
+  if (index == null) index = run && run.next;
+  return !chapterUnlocked(index) && unsolvedQuestionIndexes(index).length > 0;
+}
 const route = [
   { name: '東灣', lat: 22.211842, lon: 114.029212, source: 'http://www.hong-kong.su/tung-wan-beach/' },
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
@@ -559,7 +607,12 @@ function isCoarsePointer() {
 }
 
 function startIntroStory() {
-  if (introTransitioning || !introVisible() || introPhase !== 'story' || introStep !== 0) return;
+  if (introTransitioning) return;
+  if (typeof hideMenu === 'function') hideMenu();
+  if (typeof markIntroStorySeen === 'function') markIntroStorySeen();
+  if (!introVisible() || introPhase !== 'story' || introStep !== 0) {
+    if (typeof showIntro === 'function') showIntro(0);
+  }
   pulseIntroButton('intro-start');
   // Fullscreen remains synchronous in the original click/keyboard user gesture.
   if (isCoarsePointer() && typeof window.__enterFullscreen === 'function') {
@@ -1158,6 +1211,7 @@ function introBack() {
 }
 
 function handleIntroKey(event) {
+  if (typeof handleMenuKey === 'function' && handleMenuKey(event)) return true;
   if (typeof handleQuizKey === 'function' && handleQuizKey(event)) return true;
   if (typeof liftoffVisible === 'function' && liftoffVisible()) {
     if (event.repeat) { event.preventDefault(); return true; }
@@ -1194,7 +1248,8 @@ function handleIntroKey(event) {
     return true;
   }
   if (introStep === 0 && (event.code === 'Enter' || event.code === 'Space')) {
-    startIntroStory();
+    if (typeof openTitleMenu === 'function') openTitleMenu();
+    else startIntroStory();
     return true;
   }
   if (introStep > 0 && (event.code === 'Enter' || event.code === 'ArrowRight')) {
@@ -1234,7 +1289,7 @@ function bindIntroStory() {
   const nextBtn = byId('intro-next');
   const backBtn = byId('intro-back');
   const goBtn = byId('intro-go');
-  if (startBtn) startBtn.addEventListener('click', startIntroStory);
+  if (startBtn) startBtn.addEventListener('click', typeof openTitleMenu === 'function' ? openTitleMenu : startIntroStory);
   if (nextBtn) nextBtn.addEventListener('click', introNext);
   if (backBtn) backBtn.addEventListener('click', introBack);
   if (goBtn) goBtn.addEventListener('click', startOrResumeSection);
@@ -1247,6 +1302,7 @@ function bindIntroStory() {
   if (typeof bindFoundFilm === 'function') bindFoundFilm();
   if (typeof bindLiftoffAndBgm === 'function') bindLiftoffAndBgm();
   if (typeof bindBalloonQuiz === 'function') bindBalloonQuiz();
+  if (typeof bindMenu === 'function') bindMenu();
   showIntro(0);
   if (typeof attemptOpeningTheme === 'function') attemptOpeningTheme();
 }
@@ -1370,34 +1426,491 @@ function bindEnding() {
 }
 
 
+
+const SAVE_STORAGE_KEY = 'cheung-chau-heli-saves-v1';
+const STORY_SEEN_KEY = 'cheung-chau-heli-seen-story';
+const SAVE_SLOTS = 3;
+let menuSnapshot = null;
+let menuSlotAction = null;
+let menuConfirmKind = null;
+let menuPendingSlot = -1;
+let lastSaveSlot = 0;
+let autosaveTimer = null;
+
+function menuVisible() {
+  const node = byId('menu');
+  return !!(node && !node.hidden);
+}
+
+function hideMenuConfirm() {
+  const node = byId('menu-confirm');
+  if (node) node.hidden = true;
+  menuConfirmKind = null;
+  menuPendingSlot = -1;
+}
+
+function hideMenu() {
+  hideMenuConfirm();
+  menuSlotAction = null;
+  const node = byId('menu');
+  if (node) node.hidden = true;
+}
+
+function hasSeenIntroStory() {
+  try { return !!(window.localStorage && window.localStorage.getItem(STORY_SEEN_KEY) === '1'); }
+  catch (error) { return false; }
+}
+
+function markIntroStorySeen() {
+  try { if (window.localStorage) window.localStorage.setItem(STORY_SEEN_KEY, '1'); }
+  catch (error) {}
+}
+
+function formatSaveTime(ms) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Hong_Kong',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(new Date(ms));
+    const get = type => ((parts.find(part => part.type === type) || {}).value || '');
+    return get('year') + '-' + get('month') + '-' + get('day') + '  ' + get('hour') + ':' + get('minute');
+  } catch (error) {
+    const date = new Date(ms);
+    const pad = n => (n < 10 ? '0' : '') + n;
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + '  ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+}
+
+function readSaveStore() {
+  try {
+    const raw = window.localStorage && window.localStorage.getItem(SAVE_STORAGE_KEY);
+    if (!raw) return { slots: [null, null, null], lastSlot: 0 };
+    const data = JSON.parse(raw);
+    const slots = Array.isArray(data && data.slots) ? data.slots.slice(0, SAVE_SLOTS) : [];
+    while (slots.length < SAVE_SLOTS) slots.push(null);
+    return { slots: slots, lastSlot: Math.max(0, Math.min(SAVE_SLOTS - 1, data.lastSlot | 0)) };
+  } catch (error) {
+    return { slots: [null, null, null], lastSlot: 0 };
+  }
+}
+
+function writeSaveStore(store) {
+  try {
+    if (window.localStorage) window.localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(store));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function sessionInProgress() {
+  if (typeof run === 'undefined' || !run) return false;
+  if (run.sessionStarted || run.explore) return true;
+  if (run.mode && run.mode !== 'ready') return true;
+  if (typeof introPhase === 'string' && introPhase !== 'story') return true;
+  if (typeof introStep === 'number' && introStep > 0) return true;
+  const progress = (typeof chapterProgress !== 'undefined' && chapterProgress) || [];
+  return progress.some(row => row && ((row.correct | 0) > 0 || (row.solved && row.solved.length)));
+}
+
+function captureSavePayload() {
+  const progress = (typeof chapterProgress !== 'undefined' && chapterProgress) || [];
+  const deck = (typeof quizDeck !== 'undefined' && quizDeck) || [];
+  const pose = (typeof craft === 'object' && craft) ? craft : { x: 0, y: 0, z: 0, yaw: 0, vx: 0, vy: 0, vz: 0 };
+  const balloonState = (typeof balloon !== 'undefined' && balloon) ? balloon : { visible: false };
+  const last = (typeof lastBalloon !== 'undefined' && lastBalloon) ? lastBalloon : null;
+  return {
+    v: 1,
+    savedAt: Date.now(),
+    next: run.next,
+    time: run.time,
+    camera: !!run.camera,
+    explore: !!run.explore,
+    sessionStarted: !!run.sessionStarted,
+    mode: run.mode === 'quiz' ? 'flying' : run.mode,
+    introPhase: typeof introPhase === 'string' ? introPhase : 'story',
+    introStep: typeof introStep === 'number' ? introStep : 0,
+    chapterProgress: progress.map(row => ({
+      correct: row && row.correct | 0,
+      solved: row && Array.isArray(row.solved) ? row.solved.slice() : []
+    })),
+    quizDeck: deck.slice(),
+    quizChapter: (typeof quizChapter === 'number' ? quizChapter : 0) | 0,
+    quizAsked: (typeof quizAsked === 'number' ? quizAsked : 0) | 0,
+    quizIntroSeen: typeof quizIntroSeen !== 'undefined' && !!quizIntroSeen,
+    craft: {
+      x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw,
+      vx: pose.vx, vy: pose.vy, vz: pose.vz
+    },
+    balloon: balloonState.visible ? { x: balloonState.x, y: balloonState.y, z: balloonState.z, visible: true } : { visible: false },
+    lastBalloon: last && typeof last.x === 'number' ? { x: last.x, y: last.y, z: last.z } : null,
+    lastSaveSlot: lastSaveSlot
+  };
+}
+
+function applySavePayload(data) {
+  if (!data || data.v !== 1) return false;
+  if (typeof closeQuiz === 'function') closeQuiz();
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
+  if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
+  if (typeof stopEnding === 'function') stopEnding();
+  const allowed = { ready: 1, flying: 1, section: 1, found: 1, ended: 1, ending: 1 };
+  const mode = data.mode === 'quiz' ? 'flying' : (allowed[data.mode] ? data.mode : 'flying');
+  const last = typeof LAST_ROUTE_INDEX === 'number' ? LAST_ROUTE_INDEX : 3;
+  Object.assign(run, {
+    mode: mode,
+    next: Math.max(0, Math.min(last, data.next | 0)),
+    time: Math.max(0, Number(data.time) || 0),
+    camera: !!data.camera,
+    explore: !!data.explore,
+    sessionStarted: data.sessionStarted !== false
+  });
+  if (Array.isArray(data.chapterProgress)) {
+    chapterProgress = emptyChapterProgress();
+    data.chapterProgress.forEach((row, i) => {
+      if (!chapterProgress[i] || !row) return;
+      chapterProgress[i].correct = Math.max(0, row.correct | 0);
+      chapterProgress[i].solved = Array.isArray(row.solved) ? row.solved.map(n => n | 0) : [];
+    });
+  } else if (typeof emptyChapterProgress === 'function') {
+    chapterProgress = emptyChapterProgress();
+  }
+  quizChapter = data.quizChapter | 0;
+  quizAsked = data.quizAsked | 0;
+  quizIntroSeen = !!data.quizIntroSeen;
+  quizDeck = Array.isArray(data.quizDeck) ? data.quizDeck.map(n => n | 0) : [];
+  if (data.craft && typeof craft === 'object') {
+    craft.x = Number(data.craft.x);
+    craft.y = Number(data.craft.y);
+    craft.z = Number(data.craft.z);
+    craft.yaw = Number(data.craft.yaw) || 0;
+    craft.vx = Number(data.craft.vx) || 0;
+    craft.vy = Number(data.craft.vy) || 0;
+    craft.vz = Number(data.craft.vz) || 0;
+  }
+  if (data.balloon && data.balloon.visible) {
+    balloon.x = Number(data.balloon.x) || 0;
+    balloon.y = Number(data.balloon.y) || 0;
+    balloon.z = Number(data.balloon.z) || 0;
+    balloon.visible = true;
+    balloon.armed = typeof chapterHasQuiz === 'function' ? chapterHasQuiz(run.next) : true;
+  } else if (typeof hideBalloon === 'function') {
+    hideBalloon();
+  }
+  lastBalloon = data.lastBalloon && typeof data.lastBalloon.x === 'number'
+    ? { x: data.lastBalloon.x, y: data.lastBalloon.y, z: data.lastBalloon.z }
+    : null;
+  if (typeof data.lastSaveSlot === 'number') lastSaveSlot = data.lastSaveSlot;
+  if (typeof introPhase !== 'undefined' && data.introPhase) introPhase = data.introPhase;
+  if (typeof introStep !== 'undefined' && typeof data.introStep === 'number') introStep = data.introStep;
+  if (typeof updateChapterChecks === 'function') updateChapterChecks();
+  return true;
+}
+
+function resumeAfterLoadOrContinue() {
+  const snap = menuSnapshot;
+  menuSnapshot = null;
+  hideMenu();
+  if (run.mode === 'ending' || (snap && snap.ending)) {
+    if (typeof showEndingOverlay === 'function') showEndingOverlay();
+    return;
+  }
+  if (run.mode === 'ended' || (snap && snap.overlay && run.mode === 'ended')) {
+    if (typeof finish === 'function') finish(typeof LAST_ROUTE_INDEX === 'number' && run.next >= LAST_ROUTE_INDEX);
+    return;
+  }
+  if (run.mode === 'found' || (snap && snap.introPhase === 'found')) {
+    run.mode = 'found';
+    if (typeof showFoundPage === 'function') showFoundPage(run.next);
+    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
+    return;
+  }
+  if (run.mode === 'section' || (snap && (snap.introPhase === 'search' || snap.introPhase === 'bridge' || run.mode === 'ready' && snap && snap.introVisible && snap.introPhase !== 'story'))) {
+    run.mode = 'section';
+    if (typeof showSearchPage === 'function') showSearchPage(run.next);
+    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
+    return;
+  }
+  if (snap && snap.introVisible && snap.introPhase === 'story') {
+    if (typeof showIntro === 'function') showIntro(typeof snap.introStep === 'number' ? snap.introStep : 0);
+    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
+    return;
+  }
+  if (run.explore || run.mode === 'flying' || run.mode === 'quiz' || run.sessionStarted) {
+    run.mode = 'flying';
+    hideFlightOverlays();
+    if (window.__loadHeli) window.__loadHeli();
+    if (typeof prepareBalloonForFlight === 'function') prepareBalloonForFlight();
+    if (typeof pauseTheme === 'function') pauseTheme(true);
+    if (typeof startBgm === 'function') { bgmWanted = true; startBgm(400); }
+    return;
+  }
+  if (typeof showIntro === 'function') showIntro(0);
+}
+
+function writeSlot(index) {
+  const store = readSaveStore();
+  store.slots[index] = captureSavePayload();
+  store.lastSlot = index;
+  lastSaveSlot = index;
+  return writeSaveStore(store);
+}
+
+function loadSlot(index) {
+  const store = readSaveStore();
+  const data = store.slots[index];
+  if (!data) return false;
+  lastSaveSlot = index;
+  store.lastSlot = index;
+  writeSaveStore(store);
+  applySavePayload(data);
+  resumeAfterLoadOrContinue();
+  return true;
+}
+
+function canAutosave() {
+  if (!sessionInProgress() || (run && run.explore)) return false;
+  const mode = run && run.mode;
+  return mode === 'flying' || mode === 'section' || mode === 'found' || mode === 'quiz';
+}
+
+function scheduleAutosave() {
+  if (autosaveTimer && typeof clearTimeout === 'function') clearTimeout(autosaveTimer);
+  if (typeof setTimeout !== 'function') {
+    if (canAutosave()) writeSlot(lastSaveSlot);
+    return;
+  }
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    if (canAutosave()) writeSlot(lastSaveSlot);
+  }, 250);
+}
+
+function paintMenuSlots(action) {
+  const title = byId('menu-slots-title');
+  if (title) title.textContent = action === 'save' ? '儲存進度' : '讀取進度';
+  const store = readSaveStore();
+  const buttons = typeof document !== 'undefined' && document.querySelectorAll
+    ? document.querySelectorAll('#menu .menu-slot')
+    : [];
+  buttons.forEach(btn => {
+    const index = Number(btn.dataset.slot);
+    const slot = store.slots[index];
+    if (btn.classList && typeof btn.classList.toggle === 'function') btn.classList.toggle('is-empty', !slot);
+    if (slot && slot.savedAt) {
+      btn.textContent = formatSaveTime(slot.savedAt);
+      btn.disabled = false;
+    } else {
+      btn.textContent = '空白檔案';
+      btn.disabled = action === 'load';
+    }
+  });
+}
+
+function showMenuPanel(name) {
+  hideMenuConfirm();
+  const home = byId('menu-home');
+  const slots = byId('menu-slots');
+  if (home) home.hidden = name !== 'home';
+  if (slots) slots.hidden = name !== 'slots';
+}
+
+function refreshMenuHome() {
+  const cont = byId('menu-continue');
+  const save = byId('menu-save');
+  const playing = sessionInProgress();
+  if (cont) cont.hidden = !playing;
+  if (save) save.disabled = !playing;
+}
+
+function openMenu(options) {
+  const fromTitle = options && options.fromTitle;
+  menuSnapshot = {
+    mode: run && run.mode,
+    introPhase: typeof introPhase === 'string' ? introPhase : 'story',
+    introStep: typeof introStep === 'number' ? introStep : 0,
+    introVisible: typeof introVisible === 'function' && introVisible(),
+    ending: typeof endingVisible === 'function' && endingVisible(),
+    overlay: !!(byId('overlay') && !byId('overlay').hidden)
+  };
+  if (typeof closeQuiz === 'function') closeQuiz();
+  if (run && (run.mode === 'quiz' || run.mode === 'liftoff')) run.mode = 'flying';
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
+  if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
+  if (typeof endingVisible === 'function' && endingVisible() && typeof stopEnding === 'function') stopEnding();
+  if (typeof pauseBgm === 'function') pauseBgm(true);
+  if (typeof startTheme === 'function') startTheme({ fromStart: !!fromTitle, fadeMs: 400 });
+  if (typeof clearFlightInput === 'function') clearFlightInput();
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('intro')) byId('intro').hidden = true;
+  if (byId('ending')) byId('ending').hidden = true;
+  const node = byId('menu');
+  if (node) node.hidden = false;
+  showMenuPanel('home');
+  refreshMenuHome();
+}
+
+function openTitleMenu() {
+  if (typeof isCoarsePointer === 'function' && isCoarsePointer() && typeof window.__enterFullscreen === 'function') {
+    window.__enterFullscreen();
+  }
+  if (typeof preloadLiftoffMedia === 'function') preloadLiftoffMedia();
+  if (typeof startTheme === 'function') {
+    const theme = byId('theme');
+    if (!theme || theme.paused) startTheme({ fromStart: true, fadeMs: 400 });
+  }
+  openMenu({ fromTitle: true });
+}
+
+function resetInMemoryGame() {
+  if (typeof closeQuiz === 'function') closeQuiz();
+  if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
+  if (typeof stopEnding === 'function') stopEnding();
+  chapterProgress = emptyChapterProgress();
+  quizDeck = [];
+  quizAsked = 0;
+  quizChapter = 0;
+  quizIntroSeen = false;
+  lastBalloon = null;
+  if (typeof hideBalloon === 'function') hideBalloon();
+  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false });
+  window.__introPendingStart = false;
+  if (byId('marker')) byId('marker').hidden = true;
+  if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
+  if (byId('title')) byId('title').textContent = defaultTitle;
+  if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
+  if (start && start.dataset && start.dataset.unlocked === '1') start.textContent = '開始任務';
+  if (typeof updateChapterChecks === 'function') updateChapterChecks();
+}
+
+function confirmRestart() {
+  resetInMemoryGame();
+  hideMenu();
+  if (hasSeenIntroStory()) {
+    if (typeof showSearchPage === 'function') showSearchPage(0);
+    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
+  } else if (typeof startIntroStory === 'function') {
+    startIntroStory();
+  } else if (typeof showIntro === 'function') {
+    showIntro(0);
+  }
+}
+
+function askMenuConfirm(kind, slot) {
+  menuConfirmKind = kind;
+  menuPendingSlot = slot == null ? -1 : slot;
+  const node = byId('menu-confirm');
+  if (node) node.hidden = false;
+}
+
+function resolveMenuConfirm(ok) {
+  const kind = menuConfirmKind;
+  const slot = menuPendingSlot;
+  hideMenuConfirm();
+  if (!ok) return;
+  if (kind === 'restart') confirmRestart();
+  else if (kind === 'save') { writeSlot(slot); showMenuPanel('home'); refreshMenuHome(); }
+  else if (kind === 'load') loadSlot(slot);
+}
+
+function handleMenuKey(event) {
+  if (!menuVisible()) return false;
+  if (event.repeat) { event.preventDefault(); return true; }
+  const confirm = byId('menu-confirm');
+  if (confirm && !confirm.hidden) {
+    if (event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); resolveMenuConfirm(true); }
+    if (event.code === 'Escape') { event.preventDefault(); resolveMenuConfirm(false); }
+    return true;
+  }
+  if (menuSlotAction && (event.code === 'Escape' || event.code === 'ArrowLeft')) {
+    event.preventDefault();
+    menuSlotAction = null;
+    showMenuPanel('home');
+    refreshMenuHome();
+    return true;
+  }
+  if (event.code === 'Escape' && sessionInProgress()) {
+    event.preventDefault();
+    resumeAfterLoadOrContinue();
+  }
+  return true;
+}
+
+function bindMenu() {
+  const art = byId('menu-art');
+  if (art && !art.getAttribute('src') && !art.src) art.src = 'intro/menu-bg.jpg?v=' + GAME_BUILD;
+  const image = new Image();
+  image.src = 'intro/menu-bg.jpg?v=' + GAME_BUILD;
+  const cont = byId('menu-continue');
+  const restart = byId('menu-restart');
+  const load = byId('menu-load');
+  const save = byId('menu-save');
+  const back = byId('menu-slots-back');
+  const yes = byId('menu-confirm-yes');
+  const no = byId('menu-confirm-no');
+  if (cont) cont.addEventListener('click', resumeAfterLoadOrContinue);
+  if (restart) restart.addEventListener('click', () => {
+    if (sessionInProgress()) askMenuConfirm('restart');
+    else confirmRestart();
+  });
+  if (load) load.addEventListener('click', () => {
+    menuSlotAction = 'load';
+    showMenuPanel('slots');
+    paintMenuSlots('load');
+  });
+  if (save) save.addEventListener('click', () => {
+    if (!sessionInProgress()) return;
+    menuSlotAction = 'save';
+    showMenuPanel('slots');
+    paintMenuSlots('save');
+  });
+  if (back) back.addEventListener('click', () => {
+    menuSlotAction = null;
+    showMenuPanel('home');
+    refreshMenuHome();
+  });
+  if (yes) yes.addEventListener('click', () => resolveMenuConfirm(true));
+  if (no) no.addEventListener('click', () => resolveMenuConfirm(false));
+  const buttons = typeof document !== 'undefined' && document.querySelectorAll
+    ? document.querySelectorAll('#menu .menu-slot')
+    : [];
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const index = Number(btn.dataset.slot);
+      if (menuSlotAction === 'save' || menuSlotAction === 'load') askMenuConfirm(menuSlotAction, index);
+    });
+  });
+}
+
 function goHome() {
-  if (typeof resetBalloonGame === 'function') resetBalloonGame();
-  const fromEnding = endingVisible();
+  const fromEnding = typeof endingVisible === 'function' && endingVisible();
   const fromLiftoff = typeof liftoffVisible === 'function' && liftoffVisible();
-  stopEnding();
   if (typeof stopLiftoff === 'function') stopLiftoff({ immediate: true });
   if (typeof stopFoundFilm === 'function') stopFoundFilm();
   if (typeof pauseBgm === 'function') pauseBgm(true);
-  if (typeof pauseTheme === 'function') pauseTheme(true);
-  if (introTransitioning && !fromEnding && !fromLiftoff) return;
   if (introTransitioning) introTransitioning = false;
-  clearFlightInput();
-  Object.assign(run, { mode: 'ready', next: 0, time: 0, camera: false, explore: false, sessionStarted: false });
-  window.__introPendingStart = false;
-  if (byId('overlay')) byId('overlay').hidden = true;
-  if (byId('title')) byId('title').textContent = defaultTitle;
-  if (byId('briefing') && defaultBriefing) byId('briefing').textContent = defaultBriefing;
-  if (start.dataset.unlocked === '1') start.textContent = '開始任務';
-  if (byId('marker')) byId('marker').hidden = true;
-  if (byId('hint-box')) byId('hint-box').classList.remove('is-near');
-  if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
-  transitionIntroScene(() => showIntro(0));
+  if (typeof closeQuiz === 'function') closeQuiz();
+  if (run && run.mode === 'quiz') run.mode = 'flying';
+  if (typeof clearFlightInput === 'function') clearFlightInput();
+  if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  const onTitle = typeof introVisible === 'function' && introVisible() && introPhase === 'story' && introStep === 0 && !sessionInProgress();
+  if (typeof openMenu === 'function') openMenu({ fromTitle: onTitle });
+  else if (typeof showIntro === 'function') {
+    if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
+    if (typeof transitionIntroScene === 'function') transitionIntroScene(() => showIntro(0));
+    else showIntro(0);
+  }
 }
+
 
 function hideFlightOverlays() {
   if (byId('intro')) byId('intro').hidden = true;
   if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('ending')) byId('ending').hidden = true;
+  if (typeof hideMenu === 'function') hideMenu();
   if (typeof closeQuiz === 'function') closeQuiz();
   // The lift-off film is managed separately so a scene cut does not hide it mid-play.
 }
@@ -1422,6 +1935,7 @@ function beginSectionFlight() {
   hideFlightOverlays();
   if (window.__loadHeli) window.__loadHeli();
   if (typeof prepareBalloonForFlight === 'function') prepareBalloonForFlight(first);
+  if (typeof updateChapterChecks === 'function') updateChapterChecks();
   start.blur();
 }
 
@@ -1490,15 +2004,36 @@ function finish(success) {
   start.focus();
 }
 
-function shuffleQuizDeck() {
-  const order = QUIZ_QUESTIONS.map((_, index) => index);
+function shuffleQuizDeck(index) {
+  if (index == null) index = (run && typeof run.next === 'number') ? run.next : 0;
+  const order = unsolvedQuestionIndexes(index);
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const swap = order[i];
     order[i] = order[j];
     order[j] = swap;
   }
+  quizDeck = order;
+  quizChapter = index;
+  quizAsked = 0;
   return order;
+}
+
+function ensureChapterDeck() {
+  const index = (run && typeof run.next === 'number') ? run.next : 0;
+  if (quizChapter !== index || !quizDeck.length) shuffleQuizDeck(index);
+}
+
+function updateChapterChecks() {
+  const root = byId('chapter-checks');
+  if (!root) return;
+  const row = (chapterProgress && chapterProgress[run.next]) || { correct: 0 };
+  const marks = root.querySelectorAll ? root.querySelectorAll('.chapter-check') : [];
+  marks.forEach((el, i) => {
+    if (el.classList && typeof el.classList.toggle === 'function') el.classList.toggle('is-on', i < row.correct);
+  });
+  root.hidden = !!(run && run.explore);
+  root.setAttribute('aria-label', '本篇答對 ' + Math.min(CHAPTER_GOAL, row.correct | 0) + ' / ' + CHAPTER_GOAL);
 }
 
 function energyRemaining() {
@@ -1596,11 +2131,12 @@ function hideBalloon() {
 
 function resetBalloonGame() {
   closeQuiz();
-  quizAsked = 0;
-  quizDeck = shuffleQuizDeck();
   quizIntroSeen = false;
   lastBalloon = null;
   hideBalloon();
+  if (typeof emptyChapterProgress === 'function') chapterProgress = emptyChapterProgress();
+  shuffleQuizDeck(run && typeof run.next === 'number' ? run.next : 0);
+  if (typeof updateChapterChecks === 'function') updateChapterChecks();
 }
 
 function balloonSpawnBounds() {
@@ -1666,11 +2202,12 @@ function randomBalloonSpot(avoid) {
 }
 
 function spawnBalloon(avoid) {
-  if (run.explore || quizAsked >= QUIZ_QUESTIONS.length) {
+  if (run.explore || !chapterHasQuiz(run.next)) {
     hideBalloon();
     return false;
   }
-  const first = !avoid && !lastBalloon && quizAsked === 0;
+  ensureChapterDeck();
+  const first = !avoid && !lastBalloon && !(chapterProgress[run.next] && chapterProgress[run.next].correct);
   const chosen = first ? firstBalloonSpot() : randomBalloonSpot(avoid);
   balloon.x = chosen.x;
   balloon.y = chosen.y;
@@ -1683,15 +2220,11 @@ function spawnBalloon(avoid) {
 
 function prepareBalloonForFlight() {
   if (window.__loadBalloon) window.__loadBalloon();
-  if (run.explore) {
+  if (run.explore || !chapterHasQuiz(run.next)) {
     hideBalloon();
     return;
   }
-  if (!quizDeck.length) quizDeck = shuffleQuizDeck();
-  if (quizAsked >= QUIZ_QUESTIONS.length) {
-    hideBalloon();
-    return;
-  }
+  ensureChapterDeck();
   if (!balloon.visible) spawnBalloon();
 }
 
@@ -1705,9 +2238,13 @@ function maybeTriggerBalloonQuiz() {
 }
 
 function openBalloonQuiz() {
-  if (quizAsked >= QUIZ_QUESTIONS.length) return;
-  if (!quizDeck.length) quizDeck = shuffleQuizDeck();
-  quizCurrent = QUIZ_QUESTIONS[quizDeck[quizAsked]];
+  if (!chapterHasQuiz(run.next)) return;
+  ensureChapterDeck();
+  const qi = quizDeck[0];
+  if (qi == null) return;
+  const question = chapterQuestions(run.next)[qi];
+  if (!question) return;
+  quizCurrent = { prompt: question.prompt, choices: question.choices, correct: question.correct, index: qi, chapter: run.next };
   balloon.armed = false;
   clearFlightInput();
   run.mode = 'quiz';
@@ -1722,8 +2259,6 @@ function showQuizPhase(phase) {
   const question = byId('quiz-question');
   const next = byId('quiz-next');
   const prompt = byId('quiz-prompt');
-  const first = byId('quiz-choice-0');
-  const second = byId('quiz-choice-1');
   if (!root) return;
   const artFor = {
     intro: 'intro/quiz-intro.jpg',
@@ -1742,8 +2277,18 @@ function showQuizPhase(phase) {
   }
   if (phase === 'question' && quizCurrent) {
     if (prompt) prompt.textContent = quizCurrent.prompt;
-    if (first) first.textContent = quizCurrent.choices[0];
-    if (second) second.textContent = quizCurrent.choices[1];
+    const choices = quizCurrent.choices || [];
+    for (let i = 0; i < 4; i++) {
+      const btn = byId('quiz-choice-' + i);
+      if (!btn) continue;
+      if (i < choices.length) {
+        btn.hidden = false;
+        btn.textContent = choices[i];
+      } else {
+        btn.hidden = true;
+        btn.textContent = '';
+      }
+    }
   }
   const status = byId('quiz-status');
   if (status) {
@@ -1761,7 +2306,20 @@ function showQuizPhase(phase) {
 function answerQuiz(choice) {
   if (quizLeaving || quizPhase !== 'question' || !quizCurrent) return;
   const ok = choice === quizCurrent.correct;
-  if (ok) refillEnergy();
+  if (ok) {
+    const chap = quizCurrent.chapter != null ? quizCurrent.chapter : run.next;
+    const row = chapterProgress[chap] || (chapterProgress[chap] = { correct: 0, solved: [] });
+    if (row.solved.indexOf(quizCurrent.index) < 0) {
+      row.solved.push(quizCurrent.index);
+      row.correct += 1;
+    }
+    quizDeck = quizDeck.filter(i => i !== quizCurrent.index);
+    refillEnergy();
+    if (typeof updateChapterChecks === 'function') updateChapterChecks();
+    if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  } else if (quizDeck.length > 1 && quizDeck[0] === quizCurrent.index) {
+    quizDeck.push(quizDeck.shift());
+  }
   showQuizPhase(ok ? 'correct' : 'wrong');
 }
 
@@ -1772,11 +2330,14 @@ function advanceQuiz() {
     return;
   }
   if (quizPhase !== 'correct' && quizPhase !== 'wrong') return;
-  quizAsked += 1;
   closeQuiz({ fade: true });
   if (run.mode === 'quiz') run.mode = 'flying';
-  if (quizAsked >= QUIZ_QUESTIONS.length) hideBalloon();
-  else spawnBalloon(lastBalloon);
+  if (!chapterHasQuiz(run.next)) {
+    hideBalloon();
+    if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  } else {
+    spawnBalloon(lastBalloon);
+  }
 }
 
 function handleQuizKey(event) {
@@ -1785,6 +2346,8 @@ function handleQuizKey(event) {
   if (quizPhase === 'question') {
     if (event.code === 'Digit1' || event.code === 'Numpad1') { event.preventDefault(); answerQuiz(0); }
     if (event.code === 'Digit2' || event.code === 'Numpad2') { event.preventDefault(); answerQuiz(1); }
+    if (event.code === 'Digit3' || event.code === 'Numpad3') { event.preventDefault(); answerQuiz(2); }
+    if (event.code === 'Digit4' || event.code === 'Numpad4') { event.preventDefault(); answerQuiz(3); }
     return true;
   }
   if (event.code === 'Enter' || event.code === 'Space' || event.code === 'ArrowRight') {
@@ -1801,10 +2364,10 @@ function bindBalloonQuiz() {
   });
   const next = byId('quiz-next');
   if (next) next.addEventListener('click', advanceQuiz);
-  const first = byId('quiz-choice-0');
-  const second = byId('quiz-choice-1');
-  if (first) first.addEventListener('click', () => answerQuiz(0));
-  if (second) second.addEventListener('click', () => answerQuiz(1));
+  for (let i = 0; i < 4; i++) {
+    const btn = byId('quiz-choice-' + i);
+    if (btn) btn.addEventListener('click', answerQuiz.bind(null, i));
+  }
 }
 
 function balloonBasis(yaw) {
@@ -1825,6 +2388,7 @@ function faceBalloonToCamera(camera) {
 
 function update(dt) {
   if (run.mode !== 'flying') return;
+  if (typeof menuVisible === 'function' && menuVisible()) return;
   run.time += dt;
   if (!run.explore && run.time >= MISSION_TIME_LIMIT) return finish(false);
   const axis = (positive, negative) => Number(active(positive)) - Number(active(negative));
@@ -1855,8 +2419,10 @@ function update(dt) {
 
 function arriveAtStation() {
   if (run.mode !== 'flying' || run.explore) return;
+  if (typeof chapterUnlocked === 'function' && !chapterUnlocked(run.next)) return;
   clearFlightInput();
   run.mode = 'found';
+  if (typeof scheduleAutosave === 'function') scheduleAutosave();
   if (typeof transitionIntroScene === 'function' && typeof showFoundPage === 'function') {
     transitionIntroScene(() => showFoundPage(run.next));
   }
@@ -2790,7 +3356,7 @@ function createObjects(seconds) {
   const radius = 22;
   const centreY = target.y; // Same live 30 m AGL target as marker and distance gates.
   const stripe = 3.5;
-  const showRing = run.mode === 'flying' && !run.explore && distance(craft, target) <= 300;
+  const showRing = run.mode === 'flying' && !run.explore && distance(craft, target) <= 300 && (typeof chapterUnlocked !== 'function' || chapterUnlocked(run.next));
   if (showRing) {
     function ringPoint(angle, r) {
       const lateral = Math.cos(angle)*r;
@@ -2856,7 +3422,7 @@ function drawMap() {
       map.arc(...plot(route[i].x, route[i].z), 3, 0, Math.PI * 2);
       map.fill();
     }
-    if (run.mode === 'flying') {
+    if (run.mode === 'flying' && (typeof chapterUnlocked !== 'function' || chapterUnlocked(run.next))) {
       const target = missionTarget();
       if (distance(craft, target) <= 300) {
         map.fillStyle = '#ffca6c';
@@ -2903,16 +3469,18 @@ function drawHud(camera, seconds) {
   const flyingMission = flying && !run.explore;
   const range = distance(craft, target);
   const hintBox = byId('hint-box');
+  if (typeof updateChapterChecks === 'function') updateChapterChecks();
+  const chapterOpen = typeof chapterUnlocked !== 'function' || chapterUnlocked(run.next);
   if (hintBox) {
-    hintBox.hidden = !flyingMission;
-    hintBox.classList.toggle('is-near', flyingMission && range <= 600);
+    hintBox.hidden = !(flyingMission && chapterOpen);
+    hintBox.classList.toggle('is-near', flyingMission && range <= 600 && chapterOpen);
   }
   const section = SECTIONS[run.next];
   const hintLabel = byId('hint-label');
   const hintText = byId('hint-text');
   if (section && hintLabel) hintLabel.textContent = '提示：' + section.hintWhere;
   if (section && hintText) hintText.textContent = section.hint;
-  marker.hidden = !(flyingMission && range <= 300);
+  marker.hidden = !(flyingMission && range <= 300 && chapterOpen);
   byId('reticle').hidden = !flying || !run.camera;
   if (!marker.hidden) {
     const relative = [target.x-camera.eye[0],target.y-camera.eye[1],target.z-camera.eye[2]];
