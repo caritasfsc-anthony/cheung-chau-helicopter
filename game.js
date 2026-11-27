@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1652';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1943';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -3286,6 +3286,122 @@ function initializeRenderer() {
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
   gl.useProgram(program);
   gl.enable(gl.DEPTH_TEST);
+
+  // Procedural daytime sky dome: no textures (WebGL1 / POT-safe). Drawn first
+  // with depth writes off so it never covers the island, balloons, or markers.
+  const skyProgram = gl.createProgram();
+  gl.attachShader(skyProgram, shader(gl.VERTEX_SHADER, `
+    attribute vec3 direction;
+    uniform vec3 eye, rightAxis, upAxis, forwardAxis;
+    uniform vec2 lens;
+    varying vec3 vDir;
+    void main() {
+      vDir = direction;
+      vec3 delta = direction * 6000.0;
+      float depth = dot(delta, forwardAxis);
+      gl_Position = vec4(dot(delta,rightAxis)*lens.x, dot(delta,upAxis)*lens.y,
+                         depth*1.00005-0.4, depth);
+    }`));
+  gl.attachShader(skyProgram, shader(gl.FRAGMENT_SHADER, `
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    #else
+    precision mediump float;
+    #endif
+    varying vec3 vDir;
+    uniform float time;
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = hash(i);
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+    float fbm(vec2 p) {
+      float v = 0.0;
+      v += 0.50 * noise(p); p *= 2.03;
+      v += 0.25 * noise(p); p *= 2.02;
+      v += 0.13 * noise(p); p *= 2.01;
+      v += 0.07 * noise(p);
+      return v;
+    }
+    void main() {
+      vec3 dir = normalize(vDir);
+      float h = dir.y;
+      vec3 zenith = vec3(0.32, 0.60, 0.90);
+      vec3 mid = vec3(0.55, 0.78, 0.92);
+      vec3 horizon = vec3(0.78, 0.88, 0.91);
+      vec3 sky = mix(horizon, mid, smoothstep(-0.02, 0.28, h));
+      sky = mix(sky, zenith, smoothstep(0.28, 0.90, h));
+      vec3 sunDir = normalize(vec3(0.38, 0.62, 0.42));
+      float sun = pow(max(0.0, dot(dir, sunDir)), 28.0);
+      sky += vec3(1.0, 0.93, 0.72) * sun * 0.42;
+      sky += vec3(1.0, 0.95, 0.82) * pow(max(0.0, dot(dir, sunDir)), 4.0) * 0.10;
+      float above = smoothstep(0.05, 0.16, h) * (1.0 - smoothstep(0.85, 1.08, h) * 0.22);
+      vec2 uv = dir.xz / max(h, 0.14);
+      uv += vec2(time * 0.007, time * 0.003);
+      float n = fbm(uv * 0.30 + vec2(2.1, 0.4));
+      float n2 = fbm(uv * 0.72 + vec2(5.3, 1.7));
+      float wisp = fbm(uv * 1.20 + vec2(9.5, 4.2));
+      float cloud = smoothstep(0.40, 0.66, n * 0.62 + n2 * 0.38);
+      cloud *= 0.58 + 0.42 * wisp;
+      cloud = sqrt(max(cloud, 0.0));
+      cloud *= above;
+      vec3 cloudCol = mix(vec3(0.94, 0.96, 0.99), vec3(1.0, 0.995, 0.98), clamp(wisp, 0.0, 1.0));
+      sky = mix(sky, cloudCol, clamp(cloud, 0.0, 0.92));
+      gl_FragColor = vec4(sky, 1.0);
+    }`));
+  gl.linkProgram(skyProgram);
+  if (!gl.getProgramParameter(skyProgram, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(skyProgram));
+  const skyUniforms = gameEntries(['eye','rightAxis','upAxis','forwardAxis','lens','time']
+    .map(name => [name, gl.getUniformLocation(skyProgram, name)]));
+  const skyPosition = gl.getAttribLocation(skyProgram, 'direction');
+  const skyBuffer = gl.createBuffer();
+  const skyRings = (typeof LOW_POWER !== 'undefined' && LOW_POWER) ? 12 : 18;
+  const skySegs = (typeof LOW_POWER !== 'undefined' && LOW_POWER) ? 24 : 32;
+  const skyVerts = [];
+  const skyPush = (theta, phi) => {
+    skyVerts.push(Math.sin(theta) * Math.sin(phi), Math.cos(theta), Math.sin(theta) * Math.cos(phi));
+  };
+  for (let i = 0; i < skyRings; i++) {
+    const th0 = (i / skyRings) * Math.PI * 0.54;
+    const th1 = ((i + 1) / skyRings) * Math.PI * 0.54;
+    for (let j = 0; j < skySegs; j++) {
+      const p0 = (j / skySegs) * Math.PI * 2;
+      const p1 = ((j + 1) / skySegs) * Math.PI * 2;
+      skyPush(th0, p0); skyPush(th1, p0); skyPush(th1, p1);
+      skyPush(th0, p0); skyPush(th1, p1); skyPush(th0, p1);
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, skyBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(skyVerts), gl.STATIC_DRAW);
+  const skyCount = skyVerts.length / 3;
+  function drawSky(camera, seconds) {
+    gl.useProgram(skyProgram);
+    gl.depthMask(false);
+    gl.uniform3fv(skyUniforms.eye, camera.eye);
+    gl.uniform3fv(skyUniforms.rightAxis, camera.right);
+    gl.uniform3fv(skyUniforms.upAxis, camera.up);
+    gl.uniform3fv(skyUniforms.forwardAxis, camera.forward);
+    gl.uniform2f(skyUniforms.lens, camera.fx, camera.fy);
+    gl.uniform1f(skyUniforms.time, seconds);
+    gl.bindBuffer(gl.ARRAY_BUFFER, skyBuffer);
+    gl.enableVertexAttribArray(skyPosition);
+    gl.vertexAttribPointer(skyPosition, 3, gl.FLOAT, false, 0, 0);
+    if (colour >= 0) gl.disableVertexAttribArray(colour);
+    gl.drawArrays(gl.TRIANGLES, 0, skyCount);
+    gl.depthMask(true);
+    gl.useProgram(program);
+    gl.enableVertexAttribArray(position);
+    gl.enableVertexAttribArray(colour);
+  }
+
   const uniforms = gameEntries(['eye','rightAxis','upAxis','forwardAxis','lens',
     'overviewPhoto','detailPhoto','overviewReady','detailReady','photoSurface']
     .map(name => [name, gl.getUniformLocation(program, name)]));
@@ -3475,6 +3591,7 @@ function initializeRenderer() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(.66,.83,.87,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    drawSky(camera, seconds);
     if (run.mode !== 'ready' && seconds - tileClock > 0.4) {
       tiles.requestAround(craft.x, craft.z, camera);
       tileClock = seconds;

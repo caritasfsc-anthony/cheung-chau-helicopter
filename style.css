@@ -124,18 +124,23 @@ body:has(#ending:not([hidden])) .flight-hud,
 body:has(#liftoff:not([hidden])) .flight-hud,
 body:has(#quiz:not([hidden])) .flight-hud,
 body.need-landscape .flight-hud{display:none!important}
-/* Keep the existing fullscreen control in the top-right when HUD siblings are hidden. */
+/* Keep fullscreen on the start/results overlay, and mute on the menu, when HUD siblings are hidden. */
 body:has(#overlay:not([hidden])) #fullscreen,
-body:has(#ending:not([hidden])) #fullscreen,
-body:has(#liftoff:not([hidden])) #fullscreen{margin-left:auto}
-body:has(#intro:not([hidden])) #mute{margin-left:auto}
-body:has(#menu:not([hidden])) #mute{margin-left:auto}
-/* Home stays available during the ending film so the player can leave. */
-body:has(#ending:not([hidden])) #home{display:inline-flex!important}
-body:has(#liftoff:not([hidden])) #home,
-body:has(#liftoff:not([hidden])) #fullscreen{display:inline-flex!important}
-body:has(#intro:not([hidden])) #mute{display:inline-flex!important}
+body:has(#menu:not([hidden])) #mute,
+body:has(#menu:not([hidden])) #fullscreen{margin-left:auto}
+/* Home stays available during the ending and lift-off films so the player can leave. */
+body:has(#ending:not([hidden])) #home,
+body:has(#liftoff:not([hidden])) #home{display:inline-flex!important}
+/* Mute remains on the menu (and during 3D flight as a normal HUD control). */
 body:has(#menu:not([hidden])) #mute{display:inline-flex!important}
+/* Full-bleed intro artwork (story, teaching, search, found, bridge), the ending film,
+   and the lift-off film: hide mute and fullscreen so they do not cover the logo. */
+body:has(#intro:not([hidden])) #mute,
+body:has(#intro:not([hidden])) #fullscreen,
+body:has(#ending:not([hidden])) #mute,
+body:has(#ending:not([hidden])) #fullscreen,
+body:has(#liftoff:not([hidden])) #mute,
+body:has(#liftoff:not([hidden])) #fullscreen{display:none!important}
 body:has(#quiz:not([hidden])) #home,
 body:has(#quiz:not([hidden])) #fullscreen,
 body:has(#quiz:not([hidden])) #mute,
