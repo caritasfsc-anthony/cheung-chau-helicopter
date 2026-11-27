@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1539';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1646';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -550,6 +550,11 @@ function showSearchPage(index) {
 }
 
 function showFoundPage(index) {
+  // The last mission has no post-find still; go straight to the ending film.
+  if (index >= LAST_ROUTE_INDEX) {
+    if (typeof startEndingFromFound === 'function') startEndingFromFound();
+    return;
+  }
   const node = byId('intro');
   const art = byId('intro-art');
   const section = SECTIONS[index];
@@ -1538,7 +1543,6 @@ function showEndingOverlay() {
 }
 
 function startEndingFromFound() {
-  if (introPhase !== 'found') return;
   preloadEnding();
   endingActive = true;
   if (typeof pauseBgm === 'function') pauseBgm(false);
@@ -1973,16 +1977,18 @@ function resetInMemoryGame() {
 function confirmRestart() {
   resetInMemoryGame();
   hideMenu();
-  if (hasSeenIntroStory()) {
-    tutorialFromStory = false;
-    if (typeof showTutorial === 'function') showTutorial(0);
-    else if (typeof showSearchPage === 'function') showSearchPage(0);
-    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
-  } else if (typeof startIntroStory === 'function') {
-    startIntroStory();
-  } else if (typeof showIntro === 'function') {
-    showIntro(0);
+  if (typeof markIntroStorySeen === 'function') markIntroStorySeen();
+  if (typeof preloadLiftoffMedia === 'function') preloadLiftoffMedia();
+  if (typeof startTheme === 'function') {
+    const theme = typeof byId === 'function' ? byId('theme') : null;
+    if (!theme || theme.paused) startTheme({ fromStart: true, fadeMs: 400 });
+    else startTheme({ fadeMs: 400 });
   }
+  // Always begin at the first opening story page (INTRO_PAGES[1]), even if the
+  // story was already seen. Teaching then the first search follow after page 6.
+  const begin = () => { if (typeof showIntro === 'function') showIntro(1); };
+  if (typeof transitionIntroScene === 'function') transitionIntroScene(begin);
+  else begin();
 }
 
 function askMenuConfirm(kind, slot) {
@@ -2184,7 +2190,7 @@ function finish(success) {
   byId('overlay').hidden = false;
   byId('title').textContent = success ? '考察完成' : '考察中斷';
   byId('briefing').textContent = success
-    ? '已找到莫博士、金剛仔、小螢同斑班長，亦尋回小螢銀包。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
+    ? '已找到莫博士、金剛仔、小螢同斑班長，亦尋回小螢銀包。'
     : '電量耗盡。可以再試一次。';
   start.textContent = '再飛一次';
   start.disabled = start.dataset.unlocked !== '1';
@@ -2654,8 +2660,14 @@ function arriveAtStation() {
   if (run.mode !== 'flying' || run.explore) return;
   if (typeof chapterUnlocked === 'function' && !chapterUnlocked(run.next)) return;
   clearFlightInput();
-  run.mode = 'found';
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  // Completing the last mission should play ending.mp4 immediately, not a found still.
+  if (run.next >= LAST_ROUTE_INDEX) {
+    run.mode = 'ending';
+    if (typeof startEndingFromFound === 'function') startEndingFromFound();
+    return;
+  }
+  run.mode = 'found';
   if (typeof transitionIntroScene === 'function' && typeof showFoundPage === 'function') {
     transitionIntroScene(() => showFoundPage(run.next));
   }
