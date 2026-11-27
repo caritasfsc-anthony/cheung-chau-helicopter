@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1258';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1332';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -1452,8 +1452,28 @@ function hideMenuConfirm() {
 function hideMenu() {
   hideMenuConfirm();
   menuSlotAction = null;
+  setMenuStatus('');
   const node = byId('menu');
   if (node) node.hidden = true;
+}
+
+function setMenuStatus(message, kind) {
+  const node = byId('menu-status');
+  if (!node) return;
+  if (!message) {
+    node.hidden = true;
+    node.textContent = '';
+    if (node.classList && typeof node.classList.remove === 'function') {
+      node.classList.remove('is-ok', 'is-warn');
+    }
+    return;
+  }
+  node.hidden = false;
+  node.textContent = message;
+  if (node.classList && typeof node.classList.remove === 'function') {
+    node.classList.remove('is-ok', 'is-warn');
+    if (kind && typeof node.classList.add === 'function') node.classList.add(kind === 'ok' ? 'is-ok' : 'is-warn');
+  }
 }
 
 function hasSeenIntroStory() {
@@ -1581,13 +1601,17 @@ function applySavePayload(data) {
   quizIntroSeen = !!data.quizIntroSeen;
   quizDeck = Array.isArray(data.quizDeck) ? data.quizDeck.map(n => n | 0) : [];
   if (data.craft && typeof craft === 'object') {
-    craft.x = Number(data.craft.x);
-    craft.y = Number(data.craft.y);
-    craft.z = Number(data.craft.z);
-    craft.yaw = Number(data.craft.yaw) || 0;
-    craft.vx = Number(data.craft.vx) || 0;
-    craft.vy = Number(data.craft.vy) || 0;
-    craft.vz = Number(data.craft.vz) || 0;
+    const num = (value, fallback) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    craft.x = num(data.craft.x, craft.x);
+    craft.y = num(data.craft.y, craft.y);
+    craft.z = num(data.craft.z, craft.z);
+    craft.yaw = num(data.craft.yaw, 0);
+    craft.vx = num(data.craft.vx, 0);
+    craft.vy = num(data.craft.vy, 0);
+    craft.vz = num(data.craft.vz, 0);
   }
   if (data.balloon && data.balloon.visible) {
     balloon.x = Number(data.balloon.x) || 0;
@@ -1608,8 +1632,9 @@ function applySavePayload(data) {
   return true;
 }
 
-function resumeAfterLoadOrContinue() {
-  const snap = menuSnapshot;
+function resumeAfterLoadOrContinue(options) {
+  const fromLoad = options && options.fromLoad;
+  const snap = fromLoad ? null : menuSnapshot;
   menuSnapshot = null;
   hideMenu();
   if (run.mode === 'ending' || (snap && snap.ending)) {
@@ -1665,7 +1690,7 @@ function loadSlot(index) {
   store.lastSlot = index;
   writeSaveStore(store);
   applySavePayload(data);
-  resumeAfterLoadOrContinue();
+  resumeAfterLoadOrContinue({ fromLoad: true });
   return true;
 }
 
@@ -1710,10 +1735,13 @@ function paintMenuSlots(action) {
 
 function showMenuPanel(name) {
   hideMenuConfirm();
+  setMenuStatus('');
   const home = byId('menu-home');
   const slots = byId('menu-slots');
+  const back = byId('menu-slots-back');
   if (home) home.hidden = name !== 'home';
   if (slots) slots.hidden = name !== 'slots';
+  if (back) back.hidden = name !== 'slots';
 }
 
 function refreshMenuHome() {
@@ -1721,7 +1749,11 @@ function refreshMenuHome() {
   const save = byId('menu-save');
   const playing = sessionInProgress();
   if (cont) cont.hidden = !playing;
-  if (save) save.disabled = !playing;
+  if (save) {
+    save.disabled = !playing;
+    save.title = playing ? '儲存進度到檔案位' : '尚未有可儲存的進度';
+    save.setAttribute('aria-disabled', playing ? 'false' : 'true');
+  }
 }
 
 function openMenu(options) {
@@ -1811,7 +1843,12 @@ function resolveMenuConfirm(ok) {
   hideMenuConfirm();
   if (!ok) return;
   if (kind === 'restart') confirmRestart();
-  else if (kind === 'save') { writeSlot(slot); showMenuPanel('home'); refreshMenuHome(); }
+  else if (kind === 'save') {
+    const ok = writeSlot(slot);
+    showMenuPanel('slots');
+    paintMenuSlots('save');
+    setMenuStatus(ok ? '已儲存進度' : '儲存失敗，請再試一次', ok ? 'ok' : 'warn');
+  }
   else if (kind === 'load') loadSlot(slot);
 }
 
