@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1332';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1539';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -131,6 +131,14 @@ const CHAPTER_QUIZZES = [
     { prompt: '在岬角正面及背面的海蝕穴發展成海蝕柱的次序是？①拱頂倒塌 ②兩邊海蝕穴不斷被波浪侵蝕 ③兩邊海蝕穴貫穿成拱', choices: ['A. ① → ② → ③', 'B. ② → ① → ③', 'C. ② → ③ → ①', 'D. ③ → ② → ①'], correct: 2 },
     { prompt: '「海蝕柱」（Stack）的外觀形態主要是怎樣的？', choices: ['A. 連接兩個島嶼的狹長沙堤', 'B. 矗立在海面上的獨立岩石柱', 'C. 岩壁底部向內凹陷的深洞', 'D. 在岬角形成拱形橋狀或隧道狀通道'], correct: 1 },
     { prompt: '「海蝕柱」（Stack）是由下列哪一種海岸地貌的頂部倒塌而直接演變而成的？', choices: ['A. 海崖（Sea cliff）', 'B. 浪蝕平台（Wave-cut platform）', 'C. 海蝕拱（Sea arch）', 'D. 沙嘴（Spit）'], correct: 2 }
+  ],
+  [
+    { prompt: '形成長洲連島沙洲(tombolo)的主要因素是？', choices: ['A. 填海工程把長洲南北兩島連接起來', 'B. 兩股相反方向的沿岸漂移(longshore drift)把泥沙堆積於南北兩島之間', 'C. 海平面急劇下降，令長洲中部的岩層得以露出水面', 'D. 強烈離岸風將沙粒吹向南北兩島之間'], correct: 1 },
+    { prompt: '下列哪項海岸地貌屬於「沉積地貌」？①海灘 ②連島沙洲(tombolo) ③海蝕隙(geo) ④浪蝕平台(wave-cut platform)。', choices: ['A. 只有 ① 和 ②', 'B. 只有 ① 和 ③', 'C. 只有 ② 和 ④', 'D. 只有 ③ 和 ④'], correct: 0 },
+    { prompt: '比較長洲「東灣」與「北角咀」的波浪能量，下列哪項配對正確？', choices: ['A. 東灣：能量集中；北角咀：能量分散', 'B. 東灣：能量分散；北角咀：能量集中', 'C. 東灣：破壞性波浪為主；北角咀：建設性波浪為主', 'D. 東灣：波浪能量較強；北角咀：波浪能量弱'], correct: 1 },
+    { prompt: '連島沙洲由兩條相向延伸的「沙嘴」（Spit）相連而成。下列哪項不是沙嘴形成的有利條件？', choices: ['A. 沿岸漂移持續供應充足的沉積物', 'B. 海水流速度減慢', 'C. 淺水且波浪較平靜的海域', 'D. 強勁的海流沖刷海床'], correct: 3 },
+    { prompt: '為甚麼現時長洲連島沙洲的西面海灣不是海灘？', choices: ['A. 該處海灣吹程 (fetch)較長，受強勁破壞性波浪衝擊，沉積物被帶走', 'B. 該處曾經進行填海，為長洲避風塘及碼頭所在地，興建了防波堤及海堤等人工建設', 'C. 該處海底坡度極為陡峭，沉積物無法在近岸沉積', 'D. 該處經歷了劇烈的地殼抬升，原來的海灘已變成海崖'], correct: 1 },
+    { prompt: '風季過後的長洲觀音灣，可以採用以下哪項軟工程策略以回復海灘原貌？', choices: ['A. 興建護沙堤（Groynes）', 'B. 在近岸放置大量岩石，設置拋石護堤 (riprap/ rock armour)', 'C. 進行養護海灘（Beach nourishment），從內地運入沙粒補充流失的海灘沉積物', 'D. 興建防波堤（breakwater）以阻擋海浪'], correct: 2 }
   ]
 ];
 const balloon = { x: 0, y: 0, z: 0, yaw: 0, visible: false, armed: false };
@@ -144,7 +152,19 @@ let quizChapter = 0;
 let chapterProgress = emptyChapterProgress();
 
 function emptyChapterProgress() {
-  return (typeof CHAPTER_QUIZZES !== 'undefined' ? CHAPTER_QUIZZES : [[], [], [], []]).map(() => ({ correct: 0, solved: [] }));
+  return (typeof CHAPTER_QUIZZES !== 'undefined' ? CHAPTER_QUIZZES : [[], [], [], [], []]).map(() => ({ correct: 0, solved: [], shown: [] }));
+}
+
+function chapterRow(index) {
+  if (!chapterProgress[index]) chapterProgress[index] = { correct: 0, solved: [], shown: [] };
+  if (!Array.isArray(chapterProgress[index].solved)) chapterProgress[index].solved = [];
+  if (!Array.isArray(chapterProgress[index].shown)) chapterProgress[index].shown = [];
+  return chapterProgress[index];
+}
+
+function markQuizShown(index, qi) {
+  const row = chapterRow(index);
+  if (row.shown.indexOf(qi) < 0) row.shown.push(qi);
 }
 
 function chapterUnlocked(index) {
@@ -171,7 +191,8 @@ const route = [
   { name: '東灣', lat: 22.211842, lon: 114.029212, source: 'http://www.hong-kong.su/tung-wan-beach/' },
   { name: '南氹', lat: 22.2031516, lon: 114.0317132, source: 'https://www.openstreetmap.org/node/3239128609' },
   { name: '東灣仔', lat: 22.216894575413754, lon: 114.03374428205683, agl: 50, source: 'user-adjusted 2026-11-24; near https://www.openstreetmap.org/node/1134027647' },
-  { name: '觀音灣（饅頭石）', lat: 22.2087992, lon: 114.0369247, source: 'https://www.openstreetmap.org/way/596846734' }
+  { name: '觀音灣（饅頭石）', lat: 22.2087992, lon: 114.0369247, source: 'https://www.openstreetmap.org/way/596846734' },
+  { name: '東南海蝕洞穴', lat: 22.207791650833723, lon: 114.03635604767008, source: 'user 2026-11-27' }
 ].map(point => ({ ...point, ...HK.toXZ(point.lat, point.lon) }));
 const LAST_ROUTE_INDEX = route.length - 1;
 function missionAgl(point) {
@@ -335,6 +356,10 @@ const INTRO_PAGES = [
   { src: 'intro/05-accident.jpg', alt: '可惜中途發生意外，眾人下落不明' },
   { src: 'intro/06-news.jpg', alt: '飛行服務隊於長洲海岸展開搜救，準備出發' }
 ];
+const TUTORIAL_PAGES = [
+  { src: 'intro/tutorial-1.jpg', alt: '遊戲教學。一、駕駛直升機接近熱氣球。二、答對三條問題。' },
+  { src: 'intro/tutorial-2.jpg', alt: '遊戲教學。三、左上方會出現失蹤目標的位置提示。四、幻彩出現在附近，請細心搜索。' }
+];
 const SECTIONS = [
   {
     search: 'intro/s1-search.jpg', found: 'intro/s1-found.mp4', foundPoster: 'intro/s1-found-poster.jpg',
@@ -366,11 +391,21 @@ const SECTIONS = [
     search: 'intro/s4-search.jpg', found: 'intro/s4-found.mp4', foundPoster: 'intro/s4-found-poster.jpg',
     searchAlt: '尋找斑班長　出發吧～認識海岸地貌', foundAlt: '已找到莫博士、金剛仔、小螢同斑班長',
     character: '斑班長', hintWhere: '島的東南邊', hint: '海面上嘅獨立岩柱',
+    bridge: [
+      { src: 'intro/s4-bridge-1.jpg', alt: '搜救行動告一段落，但小螢卻突然發現自己嘅銀包不翼而飛！呀！我唔見左個銀包！入面張相好珍貴架！' },
+      { src: 'intro/s4-bridge-2.jpg', alt: '銀包裡面裝著一張極具紀念價值嘅珍貴相片，究竟搜救隊能否幫佢順利尋回？' }
+    ]
+  },
+  {
+    search: 'intro/s5-search.jpg', found: 'intro/s5-found.jpg', foundPoster: 'intro/s5-found-poster.jpg',
+    searchAlt: '尋找小螢銀包　出發吧～認識海岸地貌', foundAlt: '已尋回小螢銀包',
+    character: '小螢銀包', hintWhere: '島的東南邊', hint: '海水侵蝕而成的洞穴',
     bridge: []
   }
 ];
 let introStep = 0;
 let introPhase = 'story';
+let tutorialFromStory = false;
 let bridgeStep = 0;
 let endingActive = false;
 let introTransitioning = false;
@@ -465,6 +500,32 @@ function showIntro(step) {
   setIntroStatus('');
 }
 
+function showTutorial(step) {
+  const node = byId('intro');
+  const art = byId('intro-art');
+  const page = TUTORIAL_PAGES[step];
+  if (!node || !art || !page) return;
+  if (typeof stopFoundFilm === 'function') stopFoundFilm();
+  introPhase = 'tutorial';
+  introStep = step;
+  window.__introPendingStart = false;
+  art.src = page.src + '?v=' + GAME_BUILD;
+  art.alt = page.alt;
+  node.hidden = false;
+  if (byId('overlay')) byId('overlay').hidden = true;
+  if (byId('intro-start')) byId('intro-start').hidden = true;
+  if (byId('intro-go')) byId('intro-go').hidden = true;
+  if (byId('intro-next')) {
+    byId('intro-next').hidden = false;
+    byId('intro-next').setAttribute('aria-label', '下一頁');
+  }
+  if (byId('intro-back')) {
+    byId('intro-back').hidden = false;
+    byId('intro-back').setAttribute('aria-label', '上一頁');
+  }
+  setIntroStatus('');
+}
+
 function showSearchPage(index) {
   const node = byId('intro');
   const art = byId('intro-art');
@@ -500,7 +561,9 @@ function showFoundPage(index) {
   const poster = section.foundPoster || section.found;
   art.src = poster + '?v=' + GAME_BUILD;
   art.alt = section.foundAlt;
-  node.classList.add('is-found');
+  const isFilm = !!(section.found && /\.mp4(?:$|\?)/.test(section.found));
+  if (isFilm) node.classList.add('is-found');
+  else node.classList.remove('is-found');
   node.hidden = false;
   if (byId('overlay')) byId('overlay').hidden = true;
   if (byId('intro-start')) byId('intro-start').hidden = true;
@@ -520,10 +583,66 @@ function foundFilmSrc(section) {
   return (section.found || '') + (section.found.indexOf('?') >= 0 ? '' : '?v=' + GAME_BUILD);
 }
 
+const FOUND_LOOP_END = 2.16;
+let foundLoopLock = false;
+let foundLoopUnlockTimer = null;
+
+function clearFoundLoopUnlock() {
+  if (foundLoopUnlockTimer !== null && typeof clearTimeout === 'function') clearTimeout(foundLoopUnlockTimer);
+  foundLoopUnlockTimer = null;
+}
+
+function seekFoundFilmToStart() {
+  const video = byId('intro-found');
+  if (!video || introPhase !== 'found' || foundLoopLock) return;
+  foundLoopLock = true;
+  const release = () => {
+    foundLoopLock = false;
+    clearFoundLoopUnlock();
+  };
+  const finishSeek = () => {
+    video.removeEventListener('seeked', onSeeked);
+    release();
+    if (introPhase === 'found' && !video.hidden) {
+      if (typeof tryPlayMedia === 'function') tryPlayMedia(video);
+      else {
+        try { if (typeof video.play === 'function') video.play(); } catch (error) {}
+      }
+    }
+  };
+  const onSeeked = () => finishSeek();
+  video.addEventListener('seeked', onSeeked);
+  try { video.currentTime = 0; } catch (error) {
+    video.removeEventListener('seeked', onSeeked);
+    release();
+    return;
+  }
+  // A synchronous currentTime assignment (or already being at 0) may never fire seeked.
+  if ((video.currentTime || 0) <= 0.05) {
+    finishSeek();
+    return;
+  }
+  if (typeof setTimeout === 'function') {
+    foundLoopUnlockTimer = setTimeout(() => {
+      if (foundLoopLock) finishSeek();
+    }, 300);
+  }
+}
+
+function onFoundFilmTimeUpdate() {
+  const video = byId('intro-found');
+  if (!video || introPhase !== 'found' || video.hidden || foundLoopLock) return;
+  if (video.currentTime >= FOUND_LOOP_END) seekFoundFilmToStart();
+}
+
 function playFoundFilm(section) {
   const video = byId('intro-found');
   if (!video || !section || !section.found || !/\.mp4(?:$|\?)/.test(section.found)) return;
   // Silent found clips must never steal or duck the theme already playing here.
+  // Loop 0–FOUND_LOOP_END (2.16 s) via timeupdate/ended seek; do not use native loop
+  // (that would play the full ~3.02 s container).
+  foundLoopLock = false;
+  clearFoundLoopUnlock();
   video.muted = true;
   video.defaultMuted = true;
   video.loop = false;
@@ -547,13 +666,14 @@ function playFoundFilm(section) {
 function onFoundFilmEnded() {
   const video = byId('intro-found');
   if (!video || introPhase !== 'found') return;
-  try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
-  // Leave currentTime at the end so the last frame stays on screen.
+  seekFoundFilmToStart();
 }
 
 function stopFoundFilm() {
   const node = byId('intro');
   if (node) node.classList.remove('is-found');
+  foundLoopLock = false;
+  clearFoundLoopUnlock();
   const video = byId('intro-found');
   if (!video) return;
   try { if (typeof video.pause === 'function') video.pause(); } catch (error) {}
@@ -568,6 +688,7 @@ function bindFoundFilm() {
   video.defaultMuted = true;
   video.loop = false;
   if (typeof setMediaVolume === 'function') setMediaVolume(video, 0);
+  video.addEventListener('timeupdate', onFoundFilmTimeUpdate);
   video.addEventListener('ended', onFoundFilmEnded);
   video.addEventListener('click', event => {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -1190,10 +1311,19 @@ function introNext() {
     });
     return;
   }
+  if (introPhase === 'tutorial') {
+    pulseIntroButton('intro-next');
+    if (introStep < TUTORIAL_PAGES.length - 1) transitionIntroScene(() => showTutorial(introStep + 1));
+    else transitionIntroScene(() => showSearchPage(0));
+    return;
+  }
   if (introPhase !== 'story' || introStep === 0) return;
   pulseIntroButton('intro-next');
   if (introStep < INTRO_PAGES.length - 1) transitionIntroScene(() => showIntro(introStep + 1));
-  else transitionIntroScene(() => showSearchPage(0));
+  else {
+    tutorialFromStory = true;
+    transitionIntroScene(() => showTutorial(0));
+  }
 }
 
 function introBack() {
@@ -1202,6 +1332,17 @@ function introBack() {
     pulseIntroButton('intro-back');
     if (bridgeStep > 0) transitionIntroScene(() => showBridgePage(run.next, bridgeStep - 1));
     else transitionIntroScene(() => showFoundPage(run.next));
+    return;
+  }
+  if (introPhase === 'tutorial') {
+    pulseIntroButton('intro-back');
+    if (introStep > 0) {
+      transitionIntroScene(() => showTutorial(introStep - 1));
+      return;
+    }
+    if (tutorialFromStory) transitionIntroScene(() => showIntro(INTRO_PAGES.length - 1));
+    else if (typeof openMenu === 'function') openMenu({ fromTitle: false });
+    else if (typeof showIntro === 'function') transitionIntroScene(() => showIntro(0));
     return;
   }
   // No wrap past story page 2 (step 1). Back is not drawn on section or found pages.
@@ -1242,7 +1383,7 @@ function handleIntroKey(event) {
     if (event.code === 'Enter' || event.code === 'ArrowRight') introNext();
     return true;
   }
-  if (introPhase === 'bridge') {
+  if (introPhase === 'bridge' || introPhase === 'tutorial') {
     if (event.code === 'Enter' || event.code === 'ArrowRight') introNext();
     if (event.code === 'ArrowLeft') introBack();
     return true;
@@ -1264,7 +1405,7 @@ function handleIntroKey(event) {
 }
 
 function bindIntroStory() {
-  INTRO_PAGES.forEach(page => {
+  INTRO_PAGES.concat(TUTORIAL_PAGES).forEach(page => {
     const image = new Image();
     image.src = page.src + '?v=' + GAME_BUILD;
   });
@@ -1551,9 +1692,11 @@ function captureSavePayload() {
     mode: run.mode === 'quiz' ? 'flying' : run.mode,
     introPhase: typeof introPhase === 'string' ? introPhase : 'story',
     introStep: typeof introStep === 'number' ? introStep : 0,
+    tutorialFromStory: typeof tutorialFromStory !== 'undefined' && !!tutorialFromStory,
     chapterProgress: progress.map(row => ({
       correct: row && row.correct | 0,
-      solved: row && Array.isArray(row.solved) ? row.solved.slice() : []
+      solved: row && Array.isArray(row.solved) ? row.solved.slice() : [],
+      shown: row && Array.isArray(row.shown) ? row.shown.slice() : []
     })),
     quizDeck: deck.slice(),
     quizChapter: (typeof quizChapter === 'number' ? quizChapter : 0) | 0,
@@ -1592,6 +1735,7 @@ function applySavePayload(data) {
       if (!chapterProgress[i] || !row) return;
       chapterProgress[i].correct = Math.max(0, row.correct | 0);
       chapterProgress[i].solved = Array.isArray(row.solved) ? row.solved.map(n => n | 0) : [];
+      chapterProgress[i].shown = Array.isArray(row.shown) ? row.shown.map(n => n | 0) : [];
     });
   } else if (typeof emptyChapterProgress === 'function') {
     chapterProgress = emptyChapterProgress();
@@ -1628,6 +1772,7 @@ function applySavePayload(data) {
   if (typeof data.lastSaveSlot === 'number') lastSaveSlot = data.lastSaveSlot;
   if (typeof introPhase !== 'undefined' && data.introPhase) introPhase = data.introPhase;
   if (typeof introStep !== 'undefined' && typeof data.introStep === 'number') introStep = data.introStep;
+  if (typeof tutorialFromStory !== 'undefined') tutorialFromStory = !!data.tutorialFromStory;
   if (typeof updateChapterChecks === 'function') updateChapterChecks();
   return true;
 }
@@ -1651,7 +1796,15 @@ function resumeAfterLoadOrContinue(options) {
     if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
     return;
   }
-  if (run.mode === 'section' || (snap && (snap.introPhase === 'search' || snap.introPhase === 'bridge' || run.mode === 'ready' && snap && snap.introVisible && snap.introPhase !== 'story'))) {
+  const resumePhase = (snap && snap.introPhase) || (typeof introPhase === 'string' ? introPhase : '');
+  if (resumePhase === 'tutorial') {
+    const step = snap && typeof snap.introStep === 'number' ? snap.introStep
+      : (typeof introStep === 'number' ? introStep : 0);
+    if (typeof showTutorial === 'function') showTutorial(step);
+    if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
+    return;
+  }
+  if (run.mode === 'section' || (snap && (snap.introPhase === 'search' || snap.introPhase === 'bridge' || run.mode === 'ready' && snap && snap.introVisible && snap.introPhase !== 'story' && snap.introPhase !== 'tutorial'))) {
     run.mode = 'section';
     if (typeof showSearchPage === 'function') showSearchPage(run.next);
     if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
@@ -1821,7 +1974,9 @@ function confirmRestart() {
   resetInMemoryGame();
   hideMenu();
   if (hasSeenIntroStory()) {
-    if (typeof showSearchPage === 'function') showSearchPage(0);
+    tutorialFromStory = false;
+    if (typeof showTutorial === 'function') showTutorial(0);
+    else if (typeof showSearchPage === 'function') showSearchPage(0);
     if (typeof startTheme === 'function') startTheme({ fadeMs: 400 });
   } else if (typeof startIntroStory === 'function') {
     startIntroStory();
@@ -2029,7 +2184,7 @@ function finish(success) {
   byId('overlay').hidden = false;
   byId('title').textContent = success ? '考察完成' : '考察中斷';
   byId('briefing').textContent = success
-    ? '已找到莫博士、金剛仔、小螢同斑班長。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
+    ? '已找到莫博士、金剛仔、小螢同斑班長，亦尋回小螢銀包。飛行時間 ' + Math.ceil(run.time) + ' 秒。'
     : '電量耗盡。可以再試一次。';
   start.textContent = '再飛一次';
   start.disabled = start.dataset.unlocked !== '1';
@@ -2041,24 +2196,61 @@ function finish(success) {
   start.focus();
 }
 
-function shuffleQuizDeck(index) {
-  if (index == null) index = (run && typeof run.next === 'number') ? run.next : 0;
-  const order = unsolvedQuestionIndexes(index);
+function shuffleArray(list) {
+  const order = list.slice();
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const swap = order[i];
     order[i] = order[j];
     order[j] = swap;
   }
-  quizDeck = order;
+  return order;
+}
+
+function sortByDeckOrder(list) {
+  const order = quizDeck.slice();
+  return list.slice().sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+  });
+}
+
+// Unseen unsolved questions stay at the front of the deck. Previously shown
+// (wrong) items are only reused after that unique pool is exhausted, so Q2/Q3
+// cannot repeat an earlier prompt while unused questions remain.
+function refreshQuizDeck(index) {
+  if (index == null) index = (run && typeof run.next === 'number') ? run.next : 0;
+  const row = chapterRow(index);
+  const unsolved = unsolvedQuestionIndexes(index);
+  const unseen = unsolved.filter(i => row.shown.indexOf(i) < 0);
+  const seenWrong = unsolved.filter(i => row.shown.indexOf(i) >= 0);
+  quizDeck = (unseen.length ? sortByDeckOrder(unseen) : []).concat(sortByDeckOrder(seenWrong));
+  quizChapter = index;
+  return quizDeck;
+}
+
+function shuffleQuizDeck(index) {
+  if (index == null) index = (run && typeof run.next === 'number') ? run.next : 0;
+  const row = chapterRow(index);
+  const unsolved = unsolvedQuestionIndexes(index);
+  const unseen = unsolved.filter(i => row.shown.indexOf(i) < 0);
+  const seenWrong = unsolved.filter(i => row.shown.indexOf(i) >= 0);
+  quizDeck = shuffleArray(unseen).concat(shuffleArray(seenWrong));
   quizChapter = index;
   quizAsked = 0;
-  return order;
+  return quizDeck;
 }
 
 function ensureChapterDeck() {
   const index = (run && typeof run.next === 'number') ? run.next : 0;
   if (quizChapter !== index || !quizDeck.length) shuffleQuizDeck(index);
+  else refreshQuizDeck(index);
+}
+
+function nextQuizIndex(index) {
+  if (index == null) index = (run && typeof run.next === 'number') ? run.next : 0;
+  ensureChapterDeck();
+  return quizDeck.length ? quizDeck[0] : null;
 }
 
 function updateChapterChecks() {
@@ -2276,8 +2468,7 @@ function maybeTriggerBalloonQuiz() {
 
 function openBalloonQuiz() {
   if (!chapterHasQuiz(run.next)) return;
-  ensureChapterDeck();
-  const qi = quizDeck[0];
+  const qi = nextQuizIndex(run.next);
   if (qi == null) return;
   const question = chapterQuestions(run.next)[qi];
   if (!question) return;
@@ -2313,6 +2504,8 @@ function showQuizPhase(phase) {
     next.setAttribute('aria-label', '下一頁');
   }
   if (phase === 'question' && quizCurrent) {
+    const chap = quizCurrent.chapter != null ? quizCurrent.chapter : (run && run.next);
+    if (typeof markQuizShown === 'function') markQuizShown(chap, quizCurrent.index);
     if (prompt) prompt.textContent = quizCurrent.prompt;
     const choices = quizCurrent.choices || [];
     for (let i = 0; i < 4; i++) {
@@ -2345,17 +2538,20 @@ function answerQuiz(choice) {
   const ok = choice === quizCurrent.correct;
   if (ok) {
     const chap = quizCurrent.chapter != null ? quizCurrent.chapter : run.next;
-    const row = chapterProgress[chap] || (chapterProgress[chap] = { correct: 0, solved: [] });
+    const row = chapterProgress[chap] || (chapterProgress[chap] = { correct: 0, solved: [], shown: [] });
     if (row.solved.indexOf(quizCurrent.index) < 0) {
       row.solved.push(quizCurrent.index);
       row.correct += 1;
     }
     quizDeck = quizDeck.filter(i => i !== quizCurrent.index);
+    if (typeof refreshQuizDeck === 'function') refreshQuizDeck(chap);
     refillEnergy();
     if (typeof updateChapterChecks === 'function') updateChapterChecks();
     if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  } else if (quizDeck.length > 1 && quizDeck[0] === quizCurrent.index) {
-    quizDeck.push(quizDeck.shift());
+  } else {
+    const chap = quizCurrent.chapter != null ? quizCurrent.chapter : run.next;
+    if (typeof markQuizShown === 'function') markQuizShown(chap, quizCurrent.index);
+    if (typeof refreshQuizDeck === 'function') refreshQuizDeck(chap);
   }
   showQuizPhase(ok ? 'correct' : 'wrong');
 }
