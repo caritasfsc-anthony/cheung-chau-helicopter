@@ -141,6 +141,8 @@ body:has(#ending:not([hidden])) #mute,
 body:has(#ending:not([hidden])) #fullscreen,
 body:has(#liftoff:not([hidden])) #mute,
 body:has(#liftoff:not([hidden])) #fullscreen{display:none!important}
+/* START/title cover only: keep the top-right fullscreen icon (mute stays hidden). */
+body:has(#intro.is-title:not([hidden])) #fullscreen{display:inline-flex!important;margin-left:auto}
 body:has(#quiz:not([hidden])) #home,
 body:has(#quiz:not([hidden])) #fullscreen,
 body:has(#quiz:not([hidden])) #mute,

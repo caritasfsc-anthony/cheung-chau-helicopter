@@ -3,7 +3,7 @@
 function gameEntries(entries) { const result = {}; for (const pair of entries) result[pair[0]] = pair[1]; return result; }
 const LOW_POWER = !!window.GAME_LOW_POWER;
 if (window.__startup) window.__startup('webgl', '正在建立直升機 3D 畫面（' + (LOW_POWER ? '手機省資源' : '標準') + '）', false);
-const GAME_BUILD = window.GAME_BUILD || 's1-20261127-1943';
+const GAME_BUILD = window.GAME_BUILD || 's1-20261127-2036';
 // Diagnostic switches are explicit and independent of map loading/flight logic.
 // showDock restores the obsolete synthetic platform ONLY for identification.
 const renderQuery = new URLSearchParams(location.search);
@@ -479,6 +479,11 @@ function setIntroStatus(message) {
   }
 }
 
+function setIntroTitleMode(on) {
+  const node = byId('intro');
+  if (node && node.classList) node.classList.toggle('is-title', !!on);
+}
+
 function showIntro(step) {
   const node = byId('intro');
   const art = byId('intro-art');
@@ -486,6 +491,7 @@ function showIntro(step) {
   if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'story';
   introStep = step;
+  setIntroTitleMode(step === 0);
   window.__introPendingStart = false;
   const page = INTRO_PAGES[step];
   art.src = page.src + '?v=' + GAME_BUILD;
@@ -508,6 +514,7 @@ function showTutorial(step) {
   if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'tutorial';
   introStep = step;
+  setIntroTitleMode(false);
   window.__introPendingStart = false;
   art.src = page.src + '?v=' + GAME_BUILD;
   art.alt = page.alt;
@@ -533,6 +540,7 @@ function showSearchPage(index) {
   if (!node || !art || !section) return;
   if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'search';
+  setIntroTitleMode(false);
   window.__introPendingStart = false;
   art.src = section.search + '?v=' + GAME_BUILD;
   art.alt = section.searchAlt;
@@ -562,6 +570,7 @@ function showFoundPage(index) {
   if (typeof fadeBgmOut === 'function') fadeBgmOut(400);
   if (typeof startTheme === 'function') startTheme({ fromStart: true, fadeMs: 400 });
   introPhase = 'found';
+  setIntroTitleMode(false);
   window.__introPendingStart = false;
   const poster = section.foundPoster || section.found;
   art.src = poster + '?v=' + GAME_BUILD;
@@ -710,6 +719,7 @@ function showBridgePage(sectionIndex, pageIndex) {
   if (!node || !art || !page) return;
   if (typeof stopFoundFilm === 'function') stopFoundFilm();
   introPhase = 'bridge';
+  setIntroTitleMode(false);
   bridgeStep = pageIndex;
   window.__introPendingStart = false;
   art.src = page.src + '?v=' + GAME_BUILD;
